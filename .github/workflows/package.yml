@@ -7,7 +7,7 @@ on:
       - main
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -40,6 +40,21 @@ jobs:
         with:
           name: shawnwrt-ota-opkg-feed
           path: dist/*
+      - name: Publish opkg branch
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          worktree="$(mktemp -d)"
+          git -C "$worktree" init
+          git -C "$worktree" remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git -C "$worktree" checkout --orphan opkg
+          cp -a dist/. "$worktree/"
+          git -C "$worktree" add .
+          git -C "$worktree" commit -m "Publish opkg feed"
+          git -C "$worktree" push --force origin opkg
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload Pages artifact

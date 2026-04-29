@@ -13,14 +13,17 @@ Supported boards:
 
 ## Opkg Feed
 
-The package workflow publishes a signed opkg feed through GitHub Pages:
+The package workflow publishes a signed opkg feed to the `opkg` branch:
 
 ```sh
-src/gz shawnwrt_ota https://shawnrn.github.io/shawnwrt-ota
+src/gz shawnwrt_ota https://raw.githubusercontent.com/ShawnRn/shawnwrt-ota/opkg
 ```
 
 Firmware builds include the feed public key, so `opkg update` can keep normal
 signature verification enabled.
+
+GitHub Pages also mirrors the same files for browser inspection:
+<https://shawnrn.github.io/shawnwrt-ota/>
 
 Commands:
 

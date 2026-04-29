@@ -11,6 +11,17 @@ Supported boards:
 - `cudy_tr3000-512mb-v1`
 - `qihoo_360t7`
 
+## Opkg Feed
+
+The package workflow publishes a signed opkg feed through GitHub Pages:
+
+```sh
+src/gz shawnwrt_ota https://shawnrn.github.io/shawnwrt-ota
+```
+
+Firmware builds include the feed public key, so `opkg update` can keep normal
+signature verification enabled.
+
 Commands:
 
 ```sh

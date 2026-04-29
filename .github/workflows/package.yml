@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install tools
-        run: sudo apt-get update && sudo apt-get install -y shellcheck binutils
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
       - name: Check shell script
         run: shellcheck src/usr/bin/shawnwrt-ota
       - name: Build generic IPK
@@ -39,9 +39,9 @@ jobs:
           sed -i 's/^          //' "$work/control/control"
 
           echo 2.0 > "$work/debian-binary"
-          tar -C "$work/control" -czf "$work/control.tar.gz" .
-          tar -C "$work/data" -czf "$work/data.tar.gz" .
-          (cd "$work" && ar r "$GITHUB_WORKSPACE/dist/$pkg" debian-binary control.tar.gz data.tar.gz)
+          tar --format=ustar -C "$work/control" -czf "$work/control.tar.gz" .
+          tar --format=ustar -C "$work/data" -czf "$work/data.tar.gz" .
+          (cd "$work" && tar --format=ustar -czf "$GITHUB_WORKSPACE/dist/$pkg" ./debian-binary ./data.tar.gz ./control.tar.gz)
           sha256sum "dist/$pkg" > "dist/$pkg.sha256"
       - name: Upload IPK
         uses: actions/upload-artifact@v4

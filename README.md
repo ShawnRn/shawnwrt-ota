@@ -36,3 +36,21 @@ shawnwrt-ota install
 
 `install` preserves config and records installed packages through
 `sysupgrade -k`.
+
+## LuCI Usage
+
+Open **System -> ShawnWrt OTA**.
+
+Recommended flow:
+
+1. Click **Check** to compare the installed release with the latest GitHub
+   Release.
+2. If an update is available, click **Test upgrade** first. This downloads the
+   matching sysupgrade image, verifies SHA256, and runs `sysupgrade -T` without
+   flashing.
+3. Click **Install update** only after the test passes. The helper downloads,
+   verifies, tests, and installs the image while preserving configuration.
+4. Use **Download** only when you want to keep the firmware file without
+   installing it.
+
+The LuCI page includes a small **?** help button with the same guidance.

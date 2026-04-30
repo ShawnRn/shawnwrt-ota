@@ -69,6 +69,10 @@ cli_release="$(sed -n 's/^PKG_RELEASE:=//p' "${repo_root}/openwrt/shawnwrt-ota/M
 cli_data="$(mktemp -d)"
 mkdir -p "${cli_data}/usr/bin"
 install -m 0755 "${repo_root}/src/usr/bin/shawnwrt-ota" "${cli_data}/usr/bin/shawnwrt-ota"
+mkdir -p "${cli_data}/etc/uci-defaults"
+install -m 0755 \
+	"${repo_root}/openwrt/shawnwrt-ota/files/etc/uci-defaults/99-shawnwrt-ota-finalize" \
+	"${cli_data}/etc/uci-defaults/99-shawnwrt-ota-finalize"
 build_ipk "shawnwrt-ota" "${cli_version}" "${cli_release}" \
 	"curl, jsonfilter, libubus, busybox" \
 	"ShawnWrt OTA updater" "${cli_data}"

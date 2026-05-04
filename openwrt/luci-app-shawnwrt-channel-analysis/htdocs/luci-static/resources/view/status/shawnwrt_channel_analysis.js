@@ -484,10 +484,24 @@ return view.extend({
 				function mkTab(label, val) {
 					return E('button', {
 						'class': 'btn shawnwrt-tab' + (subBand === val ? ' active' : ''),
-						'click': function() {
+						'click': function(ev) {
+							var oldSection = ev.currentTarget.closest('.shawnwrt-spectrum-section');
+							var wasFullscreen = oldSection && oldSection.classList.contains('is-fullscreen');
 							radio.subBand = val;
 							var spectrum = document.getElementById(nodeId('shawnwrt-channel-spectrum', radio));
-							if (spectrum) spectrum.replaceChildren(spectrumChart(radio));
+							if (spectrum) {
+								spectrum.replaceChildren(spectrumChart(radio));
+								if (wasFullscreen) {
+									var newSection = spectrum.querySelector('.shawnwrt-spectrum-section');
+									var overlay = document.querySelector('.shawnwrt-fs-overlay');
+									if (overlay) {
+										overlay.style.display = 'block';
+										overlay.classList.remove('is-closing');
+									}
+									if (newSection)
+										newSection.classList.add('is-fullscreen');
+								}
+							}
 						}
 					}, [ label ]);
 				}
@@ -722,26 +736,26 @@ return view.extend({
 				.shawnwrt-channel-apply { margin-top: .6rem; width: 100%; }
 				@keyframes shawnwrt-spin { to { transform: rotate(360deg); } }
 				.shawnwrt-spinner { display: inline-block; width: 1.05em; height: 1.05em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: shawnwrt-spin .72s linear infinite; vertical-align: -.12em; opacity: .86; transform-origin: center; }
-				.shawnwrt-spectrum-section { border: 1px solid var(--swrt-panel-border); border-radius: 10px; padding: .68rem; background: var(--swrt-panel); position: relative; }
+				.shawnwrt-spectrum-section { border: 1px solid var(--swrt-panel-border); border-radius: 10px; padding: .68rem; background: var(--swrt-panel); position: relative; min-height: 24.5rem; display: flex; flex-direction: column; }
 				@keyframes shawnwrt-fs-in { from { opacity: 0; } to { opacity: 1; } }
 				@keyframes shawnwrt-fs-out { from { opacity: 1; } to { opacity: 0; } }
 				@keyframes shawnwrt-ov-in { from { opacity: 0; } to { opacity: 1; } }
 				@keyframes shawnwrt-ov-out { from { opacity: 1; } to { opacity: 0; } }
-				.shawnwrt-spectrum-section.is-fullscreen { position: fixed; inset: 0; margin: auto; z-index: 9990; width: 92vw; max-width: 72rem; height: fit-content; max-height: 88vh; border-radius: 12px; padding: 1.25rem; overflow-y: auto; box-shadow: 0 24px 80px rgba(0,0,0,.32); animation: shawnwrt-fs-in .22s ease forwards; background: #fff; }
+				.shawnwrt-spectrum-section.is-fullscreen { position: fixed; inset: 0; margin: auto; z-index: 9990; width: 92vw; max-width: 72rem; height: fit-content; min-height: 0; max-height: 88vh; border-radius: 12px; padding: 1.25rem; overflow-y: auto; box-shadow: 0 24px 80px rgba(0,0,0,.32); animation: shawnwrt-fs-in .22s ease forwards; background: #fff; }
 				.shawnwrt-spectrum-section.is-closing { animation: shawnwrt-fs-out .18s ease forwards; }
 				.shawnwrt-spectrum-section.is-fullscreen .shawnwrt-spectrum-svg { min-width: 0; height: auto; max-height: 66vh; }
 				.shawnwrt-spectrum-section.is-fullscreen .shawnwrt-zoom-btn { font-size: 1rem; }
 				.shawnwrt-fs-overlay { display: none; position: fixed; inset: 0; z-index: 9989; background: rgba(0,0,0,.45); animation: shawnwrt-ov-in .25s ease forwards; }
 				.shawnwrt-fs-overlay.is-closing { animation: shawnwrt-ov-out .2s ease forwards; }
-				.shawnwrt-spectrum-head { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; margin-bottom: .5rem; }
+				.shawnwrt-spectrum-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .5rem; min-height: 2.05rem; }
 				.shawnwrt-spectrum-head h3 { margin: 0; font-size: 1rem; }
 				.shawnwrt-spectrum-actions { display: flex; align-items: center; gap: .5rem; }
 				.shawnwrt-spectrum-head small, .shawnwrt-channel-muted { color: var(--swrt-muted); font-weight: 500; font-size: .82rem; }
 				.shawnwrt-zoom-btn { border: none; background: none; cursor: pointer; font-size: 1.2rem; padding: .1rem .3rem; opacity: .5; transition: opacity .15s; line-height: 1; }
 				.shawnwrt-zoom-btn:hover { opacity: 1; }
 				.shawnwrt-zoom-btn::after { content: ''; }
-				.shawnwrt-spectrum-scroll { overflow: hidden; border-radius: 6px; background: #f5f5f7; }
-				.shawnwrt-spectrum-svg { display: block; width: 100%; min-width: 0; height: clamp(17rem, 22vw, 22rem); background: #f5f5f7; }
+				.shawnwrt-spectrum-scroll { overflow: hidden; border-radius: 6px; background: #f5f5f7; flex: 1 1 auto; min-height: 0; }
+				.shawnwrt-spectrum-svg { display: block; width: 100%; min-width: 0; height: 100%; min-height: 17.6rem; background: #f5f5f7; }
 				.shawnwrt-spectrum-bg { fill: var(--swrt-spectrum-bg); }
 				.shawnwrt-spectrum-grid { stroke: var(--swrt-spectrum-grid); stroke-dasharray: 3 5; }
 				.shawnwrt-spectrum-axis, .shawnwrt-spectrum-tick { stroke: var(--swrt-spectrum-axis); }
@@ -758,7 +772,7 @@ return view.extend({
 				.shawnwrt-spectrum-tooltip b { font-size: .95rem; margin-bottom: .15rem; overflow-wrap: anywhere; }
 				.shawnwrt-spectrum-tooltip span { color: inherit; opacity: .78; }
 				.shawnwrt-spectrum-tooltip.is-hidden { display: none; }
-				.shawnwrt-spectrum-legend { display: flex; flex-wrap: wrap; gap: .4rem .8rem; margin-top: .5rem; color: var(--swrt-muted); font-size: .8rem; }
+				.shawnwrt-spectrum-legend { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .8rem; margin-top: .5rem; min-height: 1.2rem; color: var(--swrt-muted); font-size: .8rem; }
 				.shawnwrt-spectrum-legend span::before { content: ''; display: inline-block; width: .6rem; height: .6rem; border-radius: .15rem; background: #2e86de; margin-right: .3rem; vertical-align: -.03rem; }
 				.shawnwrt-spectrum-legend .is-current::before { background: #f2994a; }
 				.shawnwrt-spectrum-legend .is-best::before { background: #2ecc71; }

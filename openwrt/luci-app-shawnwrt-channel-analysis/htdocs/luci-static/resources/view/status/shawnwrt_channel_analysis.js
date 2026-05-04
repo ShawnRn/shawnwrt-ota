@@ -585,7 +585,11 @@ return view.extend({
 		}
 
 		function closeFullscreen(section, overlay, keyHandler) {
-			if (!section.classList.contains('is-fullscreen')) return;
+			if (!section || !section.classList || !section.classList.contains('is-fullscreen'))
+				section = document.querySelector('.shawnwrt-spectrum-section.is-fullscreen');
+			if (!section)
+				return;
+
 			section.classList.add('is-closing');
 			if (overlay) overlay.classList.add('is-closing');
 			if (keyHandler) document.removeEventListener('keydown', keyHandler);
@@ -610,8 +614,8 @@ return view.extend({
 			overlay.style.display = 'block';
 			overlay.classList.remove('is-closing');
 			section.classList.add('is-fullscreen');
-			var keyHandler = function(e) { if (e.key === 'Escape') closeFullscreen(section, overlay, keyHandler); };
-			overlay.onclick = function() { closeFullscreen(section, overlay, keyHandler); };
+			var keyHandler = function(e) { if (e.key === 'Escape') closeFullscreen(null, overlay, keyHandler); };
+			overlay.onclick = function() { closeFullscreen(null, overlay, keyHandler); };
 			document.addEventListener('keydown', keyHandler);
 		}
 

@@ -1,0 +1,78 @@
+#!/bin/sh
+
+. /lib/functions.sh
+
+CONFIG_NAME="shawnwrt"
+
+log() {
+    logger -t shawnwrt-steerd "$@"
+}
+
+kick_client() {
+    local iface="$1"
+    local addr="$2"
+    local rssi="$3"
+    local thres="$4"
+    
+    log "Kicking client $addr from $iface (RSSI: $rssi < Threshold: $thres)"
+    
+    # Try 802.11v BTM request first if supported (less disruptive)
+    # ubus call hostapd.$iface bss_tm_req '{"addr":"'$addr'", "disassoc_timer":10, "validity_period":100, "preferred":true}' >/dev/null 2>&1
+    
+    # Force kick
+    ubus call hostapd."$iface" del_client '{"addr":"'"$addr"'", "reason":5, "deauth":true}' >/dev/null 2>&1
+}
+
+check_iface() {
+    local iface="$1"
+    local thres="$2"
+    
+    [ -z "$thres" ] || [ "$thres" -eq 0 ] && return
+    
+    local assoclist
+    assoclist=$(ubus call hostapd."$iface" get_clients 2>/dev/null)
+    [ -z "$assoclist" ] && return
+
+    # Parse JSON using jsonfilter
+    echo "$assoclist" | jsonfilter -e '@.clients[*]' | while read -r client_mac; do
+        # Get signal for this client
+        local signal
+        signal=$(ubus call hostapd."$iface" get_clients '{"addr":"'"$client_mac"'"}' 2>/dev/null | jsonfilter -e '@.signal')
+        
+        if [ -n "$signal" ] && [ "$signal" -lt "$thres" ]; then
+            kick_client "$iface" "$client_mac" "$signal" "$thres"
+        fi
+    done
+}
+
+run_cycle() {
+    config_load "${CONFIG_NAME}"
+    
+    local enabled
+    config_get_bool enabled "steer" "enabled" 0
+    [ "$enabled" -eq 0 ] && return
+    
+    local thres_2g thres_5g
+    config_get thres_2g "steer" "threshold_2g" "-80"
+    config_get thres_5g "steer" "threshold_5g" "-75"
+    
+    # Identify MTK interfaces
+    # Usually ra0 (2.4G) and rax0 (5G)
+    check_iface "ra0" "$thres_2g"
+    check_iface "rax0" "$thres_5g"
+    
+    # Also support standard names if they exist
+    # check_iface "wlan0" "$thres_2g"
+    # check_iface "wlan1" "$thres_5g"
+}
+
+# Main loop
+log "Daemon started"
+while true; do
+    run_cycle
+    
+    config_load "${CONFIG_NAME}"
+    local interval
+    config_get interval "steer" "interval" "10"
+    sleep "$interval"
+done

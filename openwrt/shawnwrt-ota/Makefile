@@ -1,8 +1,8 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=shawnwrt-ota
-PKG_VERSION:=1.0.6
-PKG_RELEASE:=r1
+PKG_VERSION:=1.0.7
+PKG_RELEASE:=1
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -25,6 +25,9 @@ endef
 define Package/shawnwrt-ota/install
 	$(INSTALL_DIR) $(1)/usr/bin
 	$(INSTALL_BIN) ./files/usr/bin/shawnwrt-ota $(1)/usr/bin/shawnwrt-ota
+	$(INSTALL_BIN) ./files/usr/bin/shawnwrt-steerd $(1)/usr/bin/shawnwrt-steerd
+	$(INSTALL_DIR) $(1)/etc/init.d
+	$(INSTALL_BIN) ./files/etc/init.d/shawnwrt-steerd $(1)/etc/init.d/shawnwrt-steerd
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/etc/uci-defaults/99-shawnwrt-ota-finalize $(1)/etc/uci-defaults/99-shawnwrt-ota-finalize
 endef

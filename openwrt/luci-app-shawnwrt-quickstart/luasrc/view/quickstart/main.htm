@@ -48,6 +48,14 @@
           location.href = vue_prefix;
         }
       }
+      
+      var originalFetch = window.fetch;
+      window.fetch = function(input, init) {
+          if (typeof input === 'string' && input.startsWith(window.vue_api_prefix)) {
+              input = input + (input.includes('?') ? '&' : '?') + 'token=' + window.token;
+          }
+          return originalFetch(input, init);
+      };
     })();
 </script>
 <div id="app">

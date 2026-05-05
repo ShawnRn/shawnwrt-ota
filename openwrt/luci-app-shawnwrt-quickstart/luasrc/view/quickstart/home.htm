@@ -2,8 +2,8 @@
 local function vue_lang()
     local i18n = require("luci.i18n")
     local lang = i18n.translate("quickstart_vue_lang")
-    if lang == "quickstart_vue_lang" or lang == "" then
-        lang = "en"
+    if lang == "quickstart_vue_lang" or lang == "" or lang == "en" then
+        lang = "zh-cn"
     end
     return lang
 end

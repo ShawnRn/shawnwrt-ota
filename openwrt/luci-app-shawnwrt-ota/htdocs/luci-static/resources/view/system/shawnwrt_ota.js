@@ -6,26 +6,29 @@
 var zh = (document.documentElement.getAttribute('lang') || navigator.language || '').toLowerCase().indexOf('zh') === 0;
 
 var L = {
-	title: zh ? '系统更新' : _('Software Update'),
-	subtitle: zh ? '让你的 ShawnWrt 保持最新状态。' : _('Keep your ShawnWrt up to date.'),
-	checking: zh ? '正在检查更新...' : _('Checking for updates...'),
-	upToDate: zh ? '您的系统已是最新版本' : _('Your system is up to date'),
-	updateAvailable: zh ? '发现新版本' : _('Update Available'),
-	version: zh ? '版本' : _('Version'),
-	installedVersion: zh ? '当前版本' : _('Installed'),
-	latestVersion: zh ? '最新版本' : _('Latest'),
-	checkedAt: zh ? '上次检查时间：' : _('Last checked: '),
-	downloadAndInstall: zh ? '立即更新' : _('Update Now'),
-	installing: zh ? '正在更新...' : _('Updating...'),
-	downloading: zh ? '正在下载固件...' : _('Downloading firmware...'),
-	verifying: zh ? '正在校验与测试...' : _('Verifying and testing...'),
-	rebooting: zh ? '即将重启' : _('Rebooting shortly'),
-	error: zh ? '更新失败' : _('Update Failed'),
-	log: zh ? '详细日志' : _('Details'),
+	title: zh ? '在线升级' : _('Online Upgrade'),
+	subtitle: zh ? '管理 ShawnWrt 系统版本并保持更新。' : _('Manage ShawnWrt system versions and keep updated.'),
+	checking: zh ? '正在检查更新...' : _('Checking...'),
+	upToDate: zh ? '当前已是最新版本' : _('System is up to date'),
+	updateAvailable: zh ? '发现新版本可用' : _('Update Available'),
+	versionInfo: zh ? '版本信息' : _('Version Info'),
+	installedVersion: zh ? '当前固件版本' : _('Installed Version'),
+	latestVersion: zh ? '云端最新版本' : _('Latest Release'),
+	boardInfo: zh ? '设备目标' : _('Board'),
+	fileSize: zh ? '文件大小' : _('Size'),
+	sha256: 'SHA256',
+	checkedAt: zh ? '上次检查' : _('Last checked'),
+	downloadAndInstall: zh ? '立即下载并安装' : _('Download & Install'),
+	checkNow: zh ? '立即检查更新' : _('Check for Updates'),
+	installing: zh ? '正在执行更新' : _('Updating'),
+	downloading: zh ? '正在下载固件' : _('Downloading'),
+	verifying: zh ? '正在验证固件' : _('Verifying'),
+	rebooting: zh ? '准备重启' : _('Rebooting'),
+	error: zh ? '更新失败' : _('Failed'),
+	log: zh ? '执行日志' : _('Execution Log'),
 	close: zh ? '关闭' : _('Close'),
-	needCheck: zh ? '尚未检查更新' : _('Check needed'),
-	checkNow: zh ? '检查更新' : _('Check for Update'),
-	rebootWarning: zh ? '更新过程中网络会短暂中断，完成后路由器将自动重启。' : _('Network will disconnect briefly. The router will reboot automatically after completion.')
+	needCheck: zh ? '未获取到云端信息' : _('No Info'),
+	rebootWarning: zh ? '更新过程中网络会短暂中断，完成后路由器将自动重启。建议在更新前备份配置。' : _('Network will disconnect briefly. The router will reboot automatically. Backup is recommended.')
 };
 
 function runOta(args) {
@@ -55,195 +58,205 @@ return view.extend({
 
 	render: function(data) {
 		var self = this;
-		var board = data[0].stdout || 'unknown';
+		var boardId = data[0].stdout || 'unknown';
 		var statusInfo = parseInfo(data[1].stdout);
 		
-		var container = E('div', { 'class': 'swrt-ota-container' });
+		var container = E('div', { 'class': 'swrt-ota-wrap' });
 		
-		// CSS Styles
 		var style = E('style', {}, [`
-			.swrt-ota-container {
-				max-width: 800px;
-				margin: 1rem auto;
-				font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-			}
-			.swrt-ota-header {
-				margin-bottom: 2rem;
-				text-align: center;
-			}
-			.swrt-ota-header h2 {
-				font-size: 2.2rem;
-				font-weight: 700;
+			.swrt-ota-wrap {
+				width: 100%;
 				margin: 0;
-				background: linear-gradient(135deg, #222 0%, #666 100%);
-				-webkit-background-clip: text;
-				-webkit-text-fill-color: transparent;
+				padding: 0;
+				color: var(--swrt-text, #222);
 			}
-			.swrt-ota-header p {
-				color: #888;
-				font-size: 1.1rem;
-				margin-top: 0.5rem;
-			}
-			.swrt-ota-card {
-				background: rgba(255, 255, 255, 0.7);
-				backdrop-filter: blur(20px);
-				-webkit-backdrop-filter: blur(20px);
-				border-radius: 24px;
-				padding: 2.5rem;
-				box-shadow: 0 10px 40px rgba(0,0,0,0.06);
-				border: 1px solid rgba(255, 255, 255, 0.8);
+			.swrt-ota-header { margin-bottom: 1.5rem; }
+			.swrt-ota-header h2 { font-size: 1.8rem; font-weight: 700; margin: 0; }
+			.swrt-ota-header p { color: #888; font-size: 0.95rem; margin-top: 0.3rem; }
+
+			.swrt-ota-main-card {
+				background: var(--panel-bg, #fff);
+				border: 1px solid rgba(0,0,0,0.08);
+				border-radius: 16px;
+				padding: 2rem;
+				box-shadow: 0 4px 20px rgba(0,0,0,0.03);
 				display: flex;
 				flex-direction: column;
-				align-items: center;
-				transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+				gap: 2rem;
 			}
 			@media (prefers-color-scheme: dark) {
-				.swrt-ota-header h2 { background: linear-gradient(135deg, #fff 0%, #aaa 100%); -webkit-background-clip: text; }
-				.swrt-ota-card { background: rgba(30, 30, 40, 0.6); border-color: rgba(255, 255, 255, 0.1); box-shadow: 0 20px 50px rgba(0,0,0,0.3); }
+				.swrt-ota-main-card { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); }
 			}
-			.swrt-ota-icon {
-				width: 80px;
-				height: 80px;
-				background: linear-gradient(135deg, #007aff 0%, #0051af 100%);
-				border-radius: 20px;
+
+			.swrt-ota-status-section {
+				display: flex;
+				align-items: center;
+				gap: 1.5rem;
+				border-bottom: 1px solid rgba(0,0,0,0.05);
+				padding-bottom: 1.5rem;
+			}
+			@media (prefers-color-scheme: dark) { .swrt-ota-status-section { border-color: rgba(255,255,255,0.05); } }
+
+			.swrt-ota-icon-box {
+				width: 56px;
+				height: 56px;
+				background: #f0f0f0;
+				border-radius: 12px;
 				display: flex;
 				align-items: center;
 				justify-content: center;
-				margin-bottom: 1.5rem;
-				box-shadow: 0 8px 20px rgba(0,122,255,0.3);
+				flex-shrink: 0;
 			}
-			.swrt-ota-icon svg { width: 44px; height: 44px; fill: white; }
-			
-			.swrt-ota-status-text { font-size: 1.4rem; font-weight: 600; margin-bottom: 1.5rem; text-align: center; }
-			
-			.swrt-ota-versions {
-				display: flex;
-				gap: 3rem;
-				margin-bottom: 2rem;
-				width: 100%;
-				justify-content: center;
-			}
-			.swrt-ota-ver-item { text-align: center; }
-			.swrt-ota-ver-label { font-size: 0.85rem; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.3rem; }
-			.swrt-ota-ver-val { font-size: 1.1rem; font-weight: 500; font-family: ui-monospace, monospace; }
+			@media (prefers-color-scheme: dark) { .swrt-ota-icon-box { background: rgba(255,255,255,0.05); } }
+			.swrt-ota-icon-box svg { width: 32px; height: 32px; fill: #555; }
+			@media (prefers-color-scheme: dark) { .swrt-ota-icon-box svg { fill: #aaa; } }
 
-			.swrt-ota-btn {
+			.swrt-ota-status-content { flex: 1; }
+			.swrt-ota-status-title { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.2rem; }
+			.swrt-ota-status-desc { font-size: 0.9rem; color: #888; }
+
+			.swrt-ota-info-grid {
+				display: grid;
+				grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+				gap: 1.5rem;
+			}
+
+			.swrt-ota-info-item { display: flex; flex-direction: column; gap: 0.4rem; }
+			.swrt-ota-info-label { font-size: 0.85rem; color: #999; text-transform: uppercase; letter-spacing: 0.5px; }
+			.swrt-ota-info-value { font-size: 1rem; font-weight: 500; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; }
+			.swrt-ota-info-value.is-latest { color: #28a745; font-weight: 700; }
+
+			.swrt-ota-actions { display: flex; gap: 1rem; align-items: center; margin-top: 0.5rem; }
+
+			.swrt-ota-btn-primary {
 				background: #007aff;
-				color: white !important;
+				color: #fff !important;
 				border: none;
-				padding: 12px 36px;
-				border-radius: 100px;
-				font-size: 1.05rem;
+				padding: 10px 24px;
+				border-radius: 8px;
+				font-size: 0.95rem;
 				font-weight: 600;
 				cursor: pointer;
-				transition: all 0.2s;
-				box-shadow: 0 4px 15px rgba(0,122,255,0.25);
+				transition: background 0.2s;
 			}
-			.swrt-ota-btn:hover { transform: scale(1.03); background: #0084ff; box-shadow: 0 6px 20px rgba(0,122,255,0.35); }
-			.swrt-ota-btn:active { transform: scale(0.98); }
-			.swrt-ota-btn:disabled { background: #ccc; box-shadow: none; cursor: not-allowed; }
+			.swrt-ota-btn-primary:hover { background: #006ae6; }
+			.swrt-ota-btn-primary:disabled { background: #ccc; cursor: not-allowed; }
 
-			.swrt-ota-progress-wrap { width: 100%; max-width: 400px; margin-top: 1.5rem; display: none; }
-			.swrt-ota-progress-bar { height: 8px; background: rgba(0,0,0,0.05); border-radius: 10px; overflow: hidden; margin-bottom: 0.6rem; }
-			@media (prefers-color-scheme: dark) { .swrt-ota-progress-bar { background: rgba(255,255,255,0.1); } }
-			.swrt-ota-progress-inner { height: 100%; background: #007aff; width: 0%; transition: width 0.3s ease; }
-			.swrt-ota-progress-text { font-size: 0.9rem; color: #888; text-align: center; }
+			.swrt-ota-btn-secondary {
+				background: rgba(0,0,0,0.05);
+				color: inherit !important;
+				border: none;
+				padding: 10px 24px;
+				border-radius: 8px;
+				font-size: 0.95rem;
+				font-weight: 600;
+				cursor: pointer;
+			}
+			@media (prefers-color-scheme: dark) { .swrt-ota-btn-secondary { background: rgba(255,255,255,0.1); } }
+			.swrt-ota-btn-secondary:hover { background: rgba(0,0,0,0.08); }
 
-			.swrt-ota-footer { margin-top: 1.5rem; font-size: 0.85rem; color: #999; text-align: center; }
-			.swrt-ota-log-btn { background: none; border: none; color: #007aff; cursor: pointer; padding: 0.5rem; text-decoration: none; }
-			.swrt-ota-log-btn:hover { text-decoration: underline; }
-
-			.spinning { animation: spin 1s linear infinite; }
-			@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-			
-			.pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-			@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+			.swrt-ota-progress-container { width: 100%; max-width: 500px; display: none; margin-top: 1rem; }
+			.swrt-ota-progress-label { display: flex; justify-content: space-between; font-size: 0.85rem; color: #888; margin-bottom: 0.5rem; }
+			.swrt-ota-progress-track { height: 6px; background: rgba(0,0,0,0.05); border-radius: 10px; overflow: hidden; }
+			@media (prefers-color-scheme: dark) { .swrt-ota-progress-track { background: rgba(255,255,255,0.1); } }
+			.swrt-ota-progress-fill { height: 100%; background: #007aff; width: 0%; transition: width 0.3s ease; }
 		`]);
 
-		var iconUpdate = '<svg viewBox="0 0 24 24"><path d="M12,18A6,6 0 0,1 6,12C6,11 6.25,10.03 6.7,9.2L5.24,7.74C4.46,8.97 4,10.43 4,12A8,8 0 0,0 12,20V23L16,19L12,15V18M12,4V1L8,5L12,9V6A6,6 0 0,1 18,12C18,13 17.75,13.97 17.3,14.8L18.76,16.26C19.54,15.03 20,13.57 20,12A8,8 0 0,0 12,4Z"/></svg>';
 		var iconCheck = '<svg viewBox="0 0 24 24"><path d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg>';
-		
-		var statusText = E('div', { 'class': 'swrt-ota-status-text' }, [L.checking]);
-		var iconWrap = E('div', { 'class': 'swrt-ota-icon pulse' }, [E('div', { 'innerHTML': iconUpdate })]);
-		
-		var installedVerVal = E('div', { 'class': 'swrt-ota-ver-val' }, [statusInfo.INSTALLED_TAG || '...']);
-		var latestVerVal = E('div', { 'class': 'swrt-ota-ver-val' }, [statusInfo.CLOUD_TAG || '...']);
-		
-		var progressWrap = E('div', { 'class': 'swrt-ota-progress-wrap' }, [
-			E('div', { 'class': 'swrt-ota-progress-bar' }, [
-				E('div', { 'class': 'swrt-ota-progress-inner' })
+		var iconUpdate = '<svg viewBox="0 0 24 24"><path d="M12,18A6,6 0 0,1 6,12C6,11 6.25,10.03 6.7,9.2L5.24,7.74C4.46,8.97 4,10.43 4,12A8,8 0 0,0 12,20V23L16,19L12,15V18M12,4V1L8,5L12,9V6A6,6 0 0,1 18,12C18,13 17.75,13.97 17.3,14.8L18.76,16.26C19.54,15.03 20,13.57 20,12A8,8 0 0,0 12,4Z"/></svg>';
+		var iconWait = '<svg viewBox="0 0 24 24"><path d="M12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"/></svg>';
+
+		var statusTitle = E('div', { 'class': 'swrt-ota-status-title' }, [L.checking]);
+		var statusDesc = E('div', { 'class': 'swrt-ota-status-desc' }, ['---']);
+		var iconBox = E('div', { 'class': 'swrt-ota-icon-box' }, [E('div', { 'innerHTML': iconWait })]);
+
+		function infoItem(label, value, isLatest) {
+			return E('div', { 'class': 'swrt-ota-info-item' }, [
+				E('div', { 'class': 'swrt-ota-info-label' }, [label]),
+				E('div', { 'class': 'swrt-ota-info-value' + (isLatest ? ' is-latest' : '') }, [value || '---'])
+			]);
+		}
+
+		var grid = E('div', { 'class': 'swrt-ota-info-grid' }, [
+			infoItem(L.installedVersion, statusInfo.INSTALLED_TAG),
+			infoItem(L.latestVersion, statusInfo.CLOUD_TAG),
+			infoItem(L.boardInfo, boardId),
+			infoItem(L.fileSize, statusInfo.SIZE ? (statusInfo.SIZE / 1048576).toFixed(1) + ' MB' : '---'),
+			infoItem(L.sha256, (statusInfo.DIGEST || '').replace('sha256:', '')),
+			infoItem(L.checkedAt, statusInfo.CHECKED_AT)
+		]);
+
+		var progressContainer = E('div', { 'class': 'swrt-ota-progress-container' }, [
+			E('div', { 'class': 'swrt-ota-progress-label' }, [
+				E('span', { 'id': 'swrt-ota-prog-task' }, [L.downloading]),
+				E('span', { 'id': 'swrt-ota-prog-pct' }, ['0%'])
 			]),
-			E('div', { 'class': 'swrt-ota-progress-text' }, ['0%'])
+			E('div', { 'class': 'swrt-ota-progress-track' }, [
+				E('div', { 'class': 'swrt-ota-progress-fill' })
+			])
 		]);
 
-		var actionBtn = E('button', { 'class': 'swrt-ota-btn', 'disabled': 'true' }, [L.checking]);
-		
-		var footerText = E('div', { 'class': 'swrt-ota-footer' }, [
-			statusInfo.CHECKED_AT ? (L.checkedAt + statusInfo.CHECKED_AT) : '',
-			E('br'),
-			E('button', { 'class': 'swrt-ota-log-btn', 'click': showLog }, [L.log])
-		]);
+		var actionBtn = E('button', { 'class': 'swrt-ota-btn-primary', 'disabled': 'true' }, [L.checking]);
+		var logBtn = E('button', { 'class': 'swrt-ota-btn-secondary', 'click': showLog }, [L.log]);
 
-		var card = E('div', { 'class': 'swrt-ota-card' }, [
-			iconWrap,
-			statusText,
-			E('div', { 'class': 'swrt-ota-versions' }, [
-				E('div', { 'class': 'swrt-ota-ver-item' }, [
-					E('div', { 'class': 'swrt-ota-ver-label' }, [L.installedVersion]),
-					installedVerVal
-				]),
-				E('div', { 'class': 'swrt-ota-ver-item' }, [
-					E('div', { 'class': 'swrt-ota-ver-label' }, [L.latestVersion]),
-					latestVerVal
+		var mainCard = E('div', { 'class': 'swrt-ota-main-card' }, [
+			E('div', { 'class': 'swrt-ota-status-section' }, [
+				iconBox,
+				E('div', { 'class': 'swrt-ota-status-content' }, [
+					statusTitle,
+					statusDesc
 				])
 			]),
-			actionBtn,
-			progressWrap,
-			footerText
+			grid,
+			E('div', { 'class': 'swrt-ota-actions-row' }, [
+				E('div', { 'class': 'swrt-ota-actions' }, [
+					actionBtn,
+					logBtn
+				]),
+				progressContainer
+			])
 		]);
 
-		container.append(style, 
+		container.append(style,
 			E('div', { 'class': 'swrt-ota-header' }, [
 				E('h2', [L.title]),
 				E('p', [L.subtitle])
 			]),
-			card
+			mainCard
 		);
 
 		function updateUI(info) {
 			var state = info.STATE;
-			installedVerVal.textContent = info.INSTALLED_TAG || 'Unknown';
-			latestVerVal.textContent = info.CLOUD_TAG || '---';
+			grid.children[0].lastChild.textContent = info.INSTALLED_TAG || '---';
+			grid.children[1].lastChild.textContent = info.CLOUD_TAG || '---';
+			grid.children[3].lastChild.textContent = info.SIZE ? (info.SIZE / 1048576).toFixed(1) + ' MB' : '---';
+			grid.children[4].lastChild.textContent = (info.DIGEST || '').replace('sha256:', '');
+			grid.children[5].lastChild.textContent = info.CHECKED_AT || '---';
 			
 			if (state === 'current') {
-				statusText.textContent = L.upToDate;
-				iconWrap.classList.remove('pulse');
-				iconWrap.innerHTML = iconCheck;
-				iconWrap.style.background = 'linear-gradient(135deg, #28a745 0%, #1e7e34 100%)';
-				iconWrap.style.boxShadow = '0 8px 20px rgba(40,167,69,0.3)';
+				statusTitle.textContent = L.upToDate;
+				statusDesc.textContent = info.CLOUD_TAG;
+				iconBox.innerHTML = iconCheck;
 				actionBtn.textContent = L.checkNow;
 				actionBtn.disabled = false;
 				actionBtn.onclick = function() { startCheck(); };
 			} else if (state === 'update') {
-				statusText.textContent = L.updateAvailable;
-				iconWrap.classList.add('pulse');
-				iconWrap.innerHTML = iconUpdate;
-				iconWrap.style.background = 'linear-gradient(135deg, #007aff 0%, #0051af 100%)';
+				statusTitle.textContent = L.updateAvailable;
+				statusDesc.textContent = info.CLOUD_TAG;
+				grid.children[1].lastChild.classList.add('is-latest');
+				iconBox.innerHTML = iconUpdate;
 				actionBtn.textContent = L.downloadAndInstall;
 				actionBtn.disabled = false;
 				actionBtn.onclick = function() { confirmInstall(); };
 			} else if (state === 'need_check') {
-				statusText.textContent = L.needCheck;
+				statusTitle.textContent = L.needCheck;
+				statusDesc.textContent = L.checkNow;
 				actionBtn.textContent = L.checkNow;
 				actionBtn.disabled = false;
 				actionBtn.onclick = function() { startCheck(); };
 			} else if (state === 'pending') {
-				statusText.textContent = L.rebooting;
+				statusTitle.textContent = L.rebooting;
 				actionBtn.style.display = 'none';
-			}
-			
-			if (info.CHECKED_AT) {
-				footerText.firstChild.textContent = L.checkedAt + info.CHECKED_AT;
 			}
 		}
 
@@ -271,8 +284,8 @@ return view.extend({
 
 		function startInstall() {
 			actionBtn.style.display = 'none';
-			progressWrap.style.display = 'block';
-			statusText.textContent = L.downloading;
+			progressContainer.style.display = 'block';
+			statusTitle.textContent = L.downloading;
 			runOta(['start', 'all']).then(function() {
 				pollJob();
 			});
@@ -289,19 +302,20 @@ return view.extend({
 				if (running) {
 					if (cmd === 'all' || cmd === 'download') {
 						if (progress > 0 && progress < 100) {
-							statusText.textContent = L.downloading + ' (' + progress + '%)';
+							statusTitle.textContent = L.downloading + ' (' + progress + '%)';
+							document.getElementById('swrt-ota-prog-task').textContent = L.downloading;
 						} else if (progress === 100) {
-							statusText.textContent = L.verifying;
+							statusTitle.textContent = L.verifying;
+							document.getElementById('swrt-ota-prog-task').textContent = L.verifying;
 						}
-						progressWrap.querySelector('.swrt-ota-progress-inner').style.width = progress + '%';
-						progressWrap.querySelector('.swrt-ota-progress-text').textContent = progress + '%';
+						progressContainer.querySelector('.swrt-ota-progress-fill').style.width = progress + '%';
+						document.getElementById('swrt-ota-prog-pct').textContent = progress + '%';
 					} else if (cmd === 'check') {
-						statusText.textContent = L.checking;
+						statusTitle.textContent = L.checking;
 					}
 					
-					// If we see ACTION=test_ok in log, it means it's about to reboot
 					if (res.stdout.indexOf('ACTION=test_ok') !== -1) {
-						statusText.textContent = L.rebooting;
+						statusTitle.textContent = L.rebooting;
 					}
 
 					setTimeout(pollJob, 1500);
@@ -310,16 +324,16 @@ return view.extend({
 						runOta(['status']).then(function(s) {
 							var info = parseInfo(s.stdout);
 							updateUI(info);
-							progressWrap.style.display = 'none';
+							progressContainer.style.display = 'none';
 							actionBtn.style.display = 'block';
 						});
 					} else if (exitCode !== '') {
-						statusText.textContent = L.error;
-						statusText.style.color = '#ff3b30';
+						statusTitle.textContent = L.error;
+						statusTitle.style.color = '#ff3b30';
 						actionBtn.disabled = false;
 						actionBtn.textContent = L.checkNow;
 						actionBtn.style.display = 'block';
-						progressWrap.style.display = 'none';
+						progressContainer.style.display = 'none';
 						ui.addNotification(null, E('p', [L.error + ' (Code ' + exitCode + ')']), 'danger');
 					}
 				}
@@ -328,17 +342,15 @@ return view.extend({
 
 		function showLog() {
 			runOta(['job-status']).then(function(res) {
-				var log = res.stdout;
 				ui.showModal(L.log, [
-					E('pre', { 'style': 'max-height:400px; overflow:auto; font-size:12px; background:#f4f4f4; padding:10px; border-radius:8px;' }, [log]),
-					E('div', { 'class': 'right', 'style': 'margin-top:10px' }, [
+					E('pre', { 'style': 'max-height:400px; overflow:auto; font-size:12px; font-family:monospace; background:rgba(0,0,0,0.05); padding:1rem; border-radius:8px;' }, [res.stdout]),
+					E('div', { 'class': 'right', 'style': 'margin-top:1rem' }, [
 						E('button', { 'class': 'btn', 'click': ui.hideModal }, [L.close])
 					])
 				]);
 			});
 		}
 
-		// Initial check if we need update
 		if (statusInfo.STATE === 'need_check' || !statusInfo.CLOUD_TAG) {
 			startCheck();
 		} else {

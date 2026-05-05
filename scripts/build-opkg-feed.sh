@@ -228,30 +228,23 @@ build_ipk "luci-app-shawnwrt-channel-analysis" "${channel_version}" "${channel_r
 	"ShawnWrt MTK channel analysis" "${channel_data}"
 rm -rf "${channel_data}"
 
-quickstart_version="$(sed -n 's/^PKG_VERSION:=//p' "${repo_root}/openwrt/luci-app-shawnwrt-quickstart/Makefile")"
-quickstart_release="$(sed -n 's/^PKG_RELEASE:=//p' "${repo_root}/openwrt/luci-app-shawnwrt-quickstart/Makefile")"
-quickstart_data="$(mktemp -d)"
-cp -a "${repo_root}/openwrt/luci-app-shawnwrt-quickstart/root/." "${quickstart_data}/"
-mkdir -p "${quickstart_data}/www/luci-static/resources/index"
-cp -a \
-	"${repo_root}/openwrt/luci-app-shawnwrt-quickstart/htdocs/luci-static/resources/index/." \
-	"${quickstart_data}/www/luci-static/resources/index/"
-mkdir -p "${quickstart_data}/usr/lib/lua/luci/controller"
+index_version="$(sed -n 's/^PKG_VERSION:=//p' "${repo_root}/openwrt/luci-app-shawnwrt-quickstart/Makefile")"
+index_release="$(sed -n 's/^PKG_RELEASE:=//p' "${repo_root}/openwrt/luci-app-shawnwrt-quickstart/Makefile")"
+index_data="$(mktemp -d)"
+
+# Root overlay (menu JSON, ACL JSON, uci-defaults, etc.)
+cp -a "${repo_root}/openwrt/luci-app-shawnwrt-quickstart/root/." "${index_data}/"
+
+# JS view
+mkdir -p "${index_data}/www/luci-static/resources/view/index"
 install -m 0644 \
-	"${repo_root}/openwrt/luci-app-shawnwrt-quickstart/luasrc/controller/quickstart.lua" \
-	"${quickstart_data}/usr/lib/lua/luci/controller/quickstart.lua"
-mkdir -p "${quickstart_data}/usr/lib/lua/luci/view/index"
-cp -a \
-	"${repo_root}/openwrt/luci-app-shawnwrt-quickstart/luasrc/view/index/." \
-	"${quickstart_data}/usr/lib/lua/luci/view/index/"
-mkdir -p "${quickstart_data}/usr/lib/lua/luci/i18n"
-compile_lmo \
-	"${repo_root}/openwrt/luci-app-shawnwrt-quickstart/po/zh-cn/quickstart.po" \
-	"${quickstart_data}/usr/lib/lua/luci/i18n/quickstart.zh-cn.lmo"
-build_ipk "luci-app-shawnwrt-quickstart" "${quickstart_version}" "${quickstart_release}" \
-	"luci-base, luci-lua-runtime" \
-	"ShawnWrt QuickStart homepage" "${quickstart_data}"
-rm -rf "${quickstart_data}"
+	"${repo_root}/openwrt/luci-app-shawnwrt-quickstart/htdocs/luci-static/resources/view/index/home.js" \
+	"${index_data}/www/luci-static/resources/view/index/home.js"
+
+build_ipk "luci-app-shawnwrt-index" "${index_version}" "${index_release}" \
+	"luci-base" \
+	"ShawnWrt Index homepage" "${index_data}"
+rm -rf "${index_data}"
 
 : > "${dist_dir}/Packages"
 for ipk in "${dist_dir}"/*.ipk; do

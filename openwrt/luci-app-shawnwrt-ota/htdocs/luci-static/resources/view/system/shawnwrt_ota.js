@@ -73,71 +73,65 @@ return view.extend({
 			}
 			@keyframes swrt-fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-			.swrt-ota-header h2 { font-size: 2.2rem; font-weight: 800; margin: 0; color: var(--textColor) !important; letter-spacing: -0.02em; border: none !important; }
-			.swrt-ota-header p { color: var(--textColor) !important; opacity: 0.5; font-size: 1rem; margin-top: 0.5rem; font-weight: 500; }
+			.swrt-ota-header h2 { font-size: 1.8rem; font-weight: 800; margin: 0; color: var(--textColor) !important; letter-spacing: -0.02em; border: none !important; }
+			.swrt-ota-header p { color: var(--textColor) !important; opacity: 0.5; font-size: 0.9rem; margin-top: 0.3rem; font-weight: 500; }
 
 			.swrt-ota-main-card {
-				background: var(--sectionbgColor) !important;
-				backdrop-filter: blur(20px);
-				-webkit-backdrop-filter: blur(20px);
-				border: 1px solid var(--borderColor) !important;
-				border-radius: 28px;
-				padding: 2.5rem;
-				box-shadow: var(--sectionShaddow), 0 20px 40px rgba(0,0,0,0.05);
+				background: var(--sectionbgColor, #fff) !important;
+				border: 1px solid var(--borderColor, rgba(0,0,0,0.1)) !important;
+				border-radius: 20px;
+				padding: 1.8rem;
+				box-shadow: 0 10px 30px rgba(0,0,0,0.05);
 				display: flex;
 				flex-direction: column;
-				gap: 2.5rem;
-				margin-top: 2rem;
+				gap: 1.8rem;
+				margin-top: 1.5rem;
 				position: relative;
-				overflow: hidden;
-			}
-			.swrt-ota-main-card::before {
-				content: '';
-				position: absolute;
-				top: 0; left: 0; right: 0; height: 4px;
-				background: linear-gradient(90deg, var(--activeColor), var(--progressbar));
-				opacity: 0.8;
 			}
 
-			.swrt-ota-status-section {
-				display: flex;
-				align-items: center;
-				gap: 2rem;
-				padding-bottom: 1rem;
+			/* Explicit Dark Mode for Icon and Contrast */
+			[data-theme='dark'] .swrt-ota-main-card,
+			.dark .swrt-ota-main-card {
+				background: #1c1c1e !important;
+				border-color: rgba(255,255,255,0.1) !important;
 			}
 
 			.swrt-ota-icon-box {
-				width: 64px;
-				height: 64px;
-				background: var(--badgebgColor) !important;
-				border-radius: 18px;
+				width: 48px;
+				height: 48px;
+				background: rgba(127,127,127,0.08) !important;
+				border-radius: 14px;
 				display: flex;
 				align-items: center;
 				justify-content: center;
 				flex-shrink: 0;
-				box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
-				transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 			}
-			.swrt-ota-main-card:hover .swrt-ota-icon-box { transform: scale(1.05) rotate(5deg); }
-			.swrt-ota-icon-box svg { width: 36px; height: 36px; fill: var(--textColor) !important; transition: fill 0.3s; }
+			.swrt-ota-icon-box svg { 
+				width: 28px; height: 28px; 
+				fill: #555 !important; 
+			}
+			[data-theme='dark'] .swrt-ota-icon-box svg,
+			.dark .swrt-ota-icon-box svg {
+				fill: #fefefe !important;
+			}
 
 			.swrt-ota-status-content { flex: 1; }
-			.swrt-ota-status-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.4rem; color: var(--textColor) !important; }
-			.swrt-ota-status-desc { font-size: 1rem; color: var(--textColor) !important; opacity: 0.5; font-family: ui-monospace, monospace; }
+			.swrt-ota-status-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.2rem; color: var(--textColor) !important; }
+			.swrt-ota-status-desc { font-size: 0.9rem; color: var(--textColor) !important; opacity: 0.5; font-family: ui-monospace, monospace; }
 
 			.swrt-ota-info-grid {
 				display: grid;
-				grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-				gap: 2rem;
-				padding: 2rem;
+				grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+				gap: 1.2rem;
+				padding: 1.5rem;
 				background: rgba(127,127,127,0.03);
-				border-radius: 20px;
-				border: 1px solid var(--borderColor);
+				border-radius: 16px;
+				border: 1px solid var(--borderColor, rgba(0,0,0,0.05));
 			}
 
-			.swrt-ota-info-item { display: flex; flex-direction: column; gap: 0.6rem; }
-			.swrt-ota-info-label { font-size: 0.8rem; color: var(--textColor) !important; opacity: 0.4; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
-			.swrt-ota-info-value { font-size: 1.05rem; font-weight: 600; font-family: ui-monospace, monospace; word-break: break-all; color: var(--textColor) !important; }
+			.swrt-ota-info-item { display: flex; flex-direction: column; gap: 0.4rem; }
+			.swrt-ota-info-label { font-size: 0.75rem; color: var(--textColor) !important; opacity: 0.4; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+			.swrt-ota-info-value { font-size: 0.95rem; font-weight: 600; font-family: ui-monospace, monospace; word-break: break-all; color: var(--textColor) !important; }
 			.swrt-ota-info-value.is-latest { color: var(--progressbar) !important; text-shadow: 0 0 10px rgba(94, 166, 155, 0.2); }
 
 			.swrt-ota-actions { display: flex; gap: 1.2rem; align-items: center; margin-top: 1rem; }

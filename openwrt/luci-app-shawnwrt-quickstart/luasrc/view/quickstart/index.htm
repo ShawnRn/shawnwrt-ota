@@ -1,0 +1,216 @@
+<%+header%>
+<div id="swrt-index-root" class="swrt-index-root">
+    <style>
+        #swrt-index-root {
+            --sw-accent: var(--activeColor, #007aff);
+            --sw-text: var(--textColor, #1d1d1f);
+            --sw-bg: var(--sectionbgColor, #ffffff);
+            --sw-border: var(--borderColor, rgba(0,0,0,0.1));
+            --sw-card-shadow: var(--sectionShaddow, 0 8px 30px rgba(0,0,0,0.04));
+            
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+            color: var(--sw-text);
+            max-width: 1200px;
+            margin: 1.5rem auto;
+            padding: 0 1rem;
+            animation: swrt-entrance 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        @keyframes swrt-entrance {
+            from { opacity: 0; transform: translateY(20px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* Top Banner */
+        .sw-banner {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 2.5rem;
+            padding: 0 0.5rem;
+        }
+
+        .sw-title-box h1 { 
+            font-size: 2.8rem; 
+            font-weight: 800; 
+            margin: 0; 
+            letter-spacing: -0.03em;
+            background: linear-gradient(135deg, var(--sw-text) 60%, var(--sw-accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            border: none !important;
+        }
+
+        .sw-status-capsule {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+            margin-top: 0.8rem;
+            padding: 6px 14px;
+            background: rgba(127,127,127,0.05);
+            border-radius: 100px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        .sw-status-dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; position: relative; }
+        .sw-status-capsule.online .sw-status-dot { background: var(--progressbar, #34c759); box-shadow: 0 0 10px var(--progressbar); }
+        .sw-status-capsule.offline .sw-status-dot { background: #ff3b30; box-shadow: 0 0 10px #ff3b30; }
+
+        .sw-meta-box { text-align: right; }
+        .sw-uptime { font-size: 1rem; font-weight: 500; opacity: 0.6; font-family: ui-monospace, monospace; }
+        
+        .sw-ota-alert {
+            display: inline-block;
+            margin-top: 0.8rem;
+            padding: 6px 16px;
+            background: var(--sw-accent);
+            color: var(--bttextColor, #fff) !important;
+            border-radius: 100px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            box-shadow: 0 8px 20px rgba(0,122,255,0.2);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .sw-ota-alert:hover { transform: scale(1.05); }
+
+        /* Main Grid */
+        .sw-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+        }
+
+        .sw-card {
+            background: var(--sw-bg) !important;
+            border: 1px solid var(--sw-border) !important;
+            border-radius: 30px;
+            padding: 2rem;
+            box-shadow: var(--sw-card-shadow);
+            transition: box-shadow 0.3s;
+        }
+        .sw-card:hover { box-shadow: 0 12px 40px rgba(0,0,0,0.08); }
+
+        .sw-card-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; }
+
+        /* Chart Section */
+        .sw-chart-legend { display: flex; gap: 1.5rem; font-size: 0.9rem; font-weight: 600; }
+        .sw-legend-item { display: flex; align-items: center; gap: 0.5rem; opacity: 0.8; }
+        .sw-legend-item.down { color: #007aff; }
+        .sw-legend-item.up { color: #5856d6; }
+        .sw-legend-item strong { font-family: ui-monospace, monospace; font-size: 1rem; }
+        
+        .sw-canvas-container { height: 260px; width: 100%; margin-top: 1rem; position: relative; }
+        #sw-speed-chart { width: 100%; height: 100%; }
+
+        /* Side Panel */
+        .sw-side-col { display: flex; flex-direction: column; gap: 1.5rem; }
+
+        /* Resource Items */
+        .sw-res-item { margin-bottom: 1.5rem; }
+        .sw-res-item:last-child { margin-bottom: 0; }
+        .sw-res-label { display: flex; justify-content: space-between; margin-bottom: 0.6rem; font-size: 0.9rem; font-weight: 600; opacity: 0.7; }
+        .sw-res-track { height: 8px; background: rgba(127,127,127,0.1); border-radius: 10px; overflow: hidden; }
+        .sw-res-fill { height: 100%; background: var(--sw-accent); border-radius: 10px; transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
+
+        /* Interface List */
+        .sw-if-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.2rem 0;
+            border-bottom: 1px solid var(--sw-border);
+        }
+        .sw-if-item:last-child { border-bottom: none; }
+        .sw-if-info { display: flex; flex-direction: column; gap: 0.2rem; }
+        .sw-if-name { font-weight: 700; font-size: 1.1rem; }
+        .sw-if-ip { font-size: 0.85rem; opacity: 0.5; font-family: ui-monospace, monospace; }
+        .sw-if-meta { text-align: right; }
+        .sw-if-speed { font-size: 0.95rem; font-weight: 600; }
+        .sw-if-tag { font-size: 0.7rem; padding: 2px 8px; background: rgba(127,127,127,0.1); border-radius: 6px; margin-left: 0.4rem; font-weight: normal; }
+
+        /* Action Buttons */
+        .sw-actions { display: flex; gap: 1rem; margin-top: 2rem; justify-content: center; }
+        .sw-btn {
+            background: var(--inputbgColor, rgba(127,127,127,0.05)) !important;
+            border: 1px solid var(--sw-border) !important;
+            color: var(--sw-text) !important;
+            padding: 14px 32px;
+            border-radius: 18px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .sw-btn:hover { background: var(--sw-accent) !important; color: #fff !important; transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,122,255,0.3); }
+
+        .hidden { display: none !important; }
+
+        @media (max-width: 900px) {
+            .sw-grid { grid-template-columns: 1fr; }
+            .sw-banner { flex-direction: column; align-items: flex-start; gap: 1.5rem; }
+            .sw-meta-box { text-align: left; }
+            .sw-title-box h1 { font-size: 2.2rem; }
+        }
+    </style>
+
+    <header class="sw-banner">
+        <div class="sw-title-box">
+            <h1 id="sw-device-name">ShawnWrt</h1>
+            <div id="sw-net-status" class="sw-status-capsule offline">
+                <span class="sw-status-dot"></span>
+                <span class="sw-status-text">正在初始化...</span>
+            </div>
+        </div>
+        <div class="sw-meta-box">
+            <div class="sw-uptime" id="sw-uptime">Uptime: --:--:--</div>
+            <div id="sw-ota-alert" class="sw-ota-alert hidden" onclick="location.href='<%=luci.dispatcher.build_url('admin/system/shawnwrt-ota')%>'">发现新版本</div>
+        </div>
+    </header>
+
+    <main class="sw-grid">
+        <div class="sw-card">
+            <div class="sw-card-title">
+                <span>实时流量</span>
+                <div class="sw-chart-legend">
+                    <span class="sw-legend-item down">下载 <strong id="sw-val-down">0 B/s</strong></span>
+                    <span class="sw-legend-item up">上传 <strong id="sw-val-up">0 B/s</strong></span>
+                </div>
+            </div>
+            <div class="sw-canvas-container">
+                <canvas id="sw-speed-chart"></canvas>
+            </div>
+        </div>
+
+        <div class="sw-side-col">
+            <div class="sw-card">
+                <div class="sw-card-title">系统资源</div>
+                <div class="sw-res-item">
+                    <div class="sw-res-label"><span>CPU 负载</span><span id="sw-cpu-val">0%</span></div>
+                    <div class="sw-res-track"><div id="sw-cpu-bar" class="sw-res-fill"></div></div>
+                </div>
+                <div class="sw-res-item">
+                    <div class="sw-res-label"><span>内存占用</span><span id="sw-mem-val">0%</span></div>
+                    <div class="sw-res-track"><div id="sw-mem-bar" class="sw-res-fill"></div></div>
+                </div>
+                <div class="sw-res-item">
+                    <div class="sw-res-label"><span>核心温度</span><span id="sw-temp-val">-- °C</span></div>
+                </div>
+            </div>
+
+            <div class="sw-card">
+                <div class="sw-card-title">网络接口</div>
+                <div id="sw-if-list"></div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="sw-actions">
+        <button class="sw-btn" onclick="location.href='<%=luci.dispatcher.build_url('admin/network/wireless')%>'">无线设置</button>
+        <button class="sw-btn" onclick="location.href='<%=luci.dispatcher.build_url('admin/system/shawnwrt-ota')%>'">系统升级</button>
+        <button class="sw-btn" onclick="if(confirm('确认重启路由器？')) location.href='<%=luci.dispatcher.build_url('admin/system/reboot')%>'">重启系统</button>
+    </footer>
+
+    <script src="/luci-static/quickstart/index.js?v=<%=os.time()%>"></script>
+</div>
+<%+footer%>

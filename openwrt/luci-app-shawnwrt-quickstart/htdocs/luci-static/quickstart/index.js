@@ -1,190 +1,171 @@
 (function() {
-    'use strict';
-
-    var pollInterval = 2000;
-    var maxChartPoints = 60;
-    var chartData = { down: [], up: [] };
-    var lastTraffic = null;
-    var chartCanvas = document.getElementById('swrt-speed-chart');
-    var chartCtx = chartCanvas ? chartCanvas.getContext('2d') : null;
-
+    // Utility: Format bytes
     function formatSpeed(bytes) {
-        if (bytes === 0) return '0 KB/s';
-        var k = 1024;
-        var sizes = ['B/s', 'KB/s', 'MB/s', 'GB/s'];
-        var i = Math.floor(Math.log(bytes) / Math.log(k));
-        if (i < 0) i = 0;
+        if (bytes === 0) return '0 B/s';
+        const k = 1024;
+        const sizes = ['B/s', 'KB/s', 'MB/s', 'GB/s'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
-    function formatUptime(seconds) {
-        var h = Math.floor(seconds / 3600);
-        var m = Math.floor((seconds % 3600) / 60);
-        var s = seconds % 60;
-        return (h < 10 ? '0' + h : h) + ':' + (m < 10 ? '0' + m : m) + ':' + (s < 10 ? '0' + s : s);
-    }
-
-    function request(url) {
-        return fetch(url).then(function(res) { return res.json(); });
-    }
-
-    function updateStatus() {
-        request('/cgi-bin/luci/admin/quickstart/api/system/status').then(function(data) {
-            var res = data.result;
-            if (!res) return;
-
-            document.getElementById('swrt-cpu-val').textContent = res.cpuUsage + '%';
-            document.getElementById('swrt-cpu-bar').style.width = res.cpuUsage + '%';
-            
-            var memUsage = 100 - res.memAvailablePercentage;
-            document.getElementById('swrt-mem-val').textContent = memUsage + '%';
-            document.getElementById('swrt-mem-bar').style.width = memUsage + '%';
-            
-            document.getElementById('swrt-temp-val').textContent = (res.cpuTemperature || 0) + ' °C';
-            document.getElementById('swrt-uptime').textContent = 'Uptime: ' + formatUptime(res.uptime);
-        });
-
-        request('/cgi-bin/luci/admin/quickstart/api/u/network/status').then(function(data) {
-            var res = data.result;
-            if (!res) return;
-
-            var indicator = document.getElementById('swrt-net-indicator');
-            if (res.networkInfo === 'netSuccess') {
-                indicator.className = 'swrt-net-status online';
-                indicator.querySelector('.swrt-status-text').textContent = '网络正常';
-            } else {
-                indicator.className = 'swrt-net-status offline';
-                indicator.querySelector('.swrt-status-text').textContent = '未连接互联网';
-            }
-
-            var ifList = document.getElementById('swrt-if-list');
-            ifList.innerHTML = '';
-            
-            ['wan', 'lan', 'wifi'].forEach(function(key) {
-                var info = res[key];
-                if (!info) return;
-
-                var item = document.createElement('div');
-                item.className = 'swrt-if-item';
-                item.innerHTML = 
-                    '<div class="swrt-if-main">' +
-                        '<div class="swrt-if-name">' + key.toUpperCase() + ' <span class="swrt-if-tag">' + info.device + '</span></div>' +
-                        '<div class="swrt-if-ip">' + info.ipaddr + '</div>' +
-                    '</div>' +
-                    '<div class="swrt-if-side">' +
-                        '<div class="swrt-if-speed">' + info.speed + '</div>' +
-                    '</div>';
-                ifList.appendChild(item);
-            });
-        });
-
-        // Update real-time speed from ubus directly for precision
-        fetch('/ubus', {
-            method: 'POST',
-            body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "call", params: ["", "network.device", "status", {}] })
-        }).then(function(res) { return res.json(); }).then(function(data) {
-            var devices = data.result || {};
-            var totalRx = 0, totalTx = 0;
-            
-            // Sum traffic for WAN or all physical devices
-            for (var dev in devices) {
-                if (dev === 'lo' || dev.indexOf('br-') === 0 || dev.indexOf('veth') === 0) continue;
-                var stats = devices[dev].statistics;
-                if (stats) {
-                    totalRx += stats.rx_bytes;
-                    totalTx += stats.tx_bytes;
-                }
-            }
-
-            var now = Date.now();
-            if (lastTraffic) {
-                var dt = (now - lastTraffic.time) / 1000;
-                var rxSpeed = (totalRx - lastTraffic.rx) / dt;
-                var txSpeed = (totalTx - lastTraffic.tx) / dt;
-
-                document.getElementById('swrt-cur-down').textContent = formatSpeed(rxSpeed);
-                document.getElementById('swrt-cur-up').textContent = formatSpeed(txSpeed);
-
-                updateChart(rxSpeed, txSpeed);
-            }
-
-            lastTraffic = { time: now, rx: totalRx, tx: totalTx };
-        });
-    }
-
-    function updateChart(rx, tx) {
-        chartData.down.push(rx);
-        chartData.up.push(tx);
-        if (chartData.down.length > maxChartPoints) {
-            chartData.down.shift();
-            chartData.up.shift();
-        }
-        drawChart();
-    }
+    // Chart logic
+    const canvas = document.getElementById('sw-speed-chart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const MAX_DATA_POINTS = 60;
+    const history = { down: new Array(MAX_DATA_POINTS).fill(0), up: new Array(MAX_DATA_POINTS).fill(0) };
 
     function drawChart() {
-        if (!chartCtx) return;
+        const w = canvas.width = canvas.parentElement.clientWidth * window.devicePixelRatio;
+        const h = canvas.height = canvas.parentElement.clientHeight * window.devicePixelRatio;
+        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        const dw = canvas.parentElement.clientWidth;
+        const dh = canvas.parentElement.clientHeight;
 
-        var w = chartCanvas.clientWidth;
-        var h = chartCanvas.clientHeight;
-        chartCanvas.width = w * window.devicePixelRatio;
-        chartCanvas.height = h * window.devicePixelRatio;
-        chartCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        ctx.clearRect(0, 0, dw, dh);
 
-        chartCtx.clearRect(0, 0, w, h);
+        const maxVal = Math.max(...history.down, ...history.up, 1024 * 10); // Min 10KB/s scale
+        const stepX = dw / (MAX_DATA_POINTS - 1);
 
-        var max = 1024 * 1024; // Min scale 1MB/s
-        chartData.down.forEach(function(v) { if (v > max) max = v; });
-        chartData.up.forEach(function(v) { if (v > max) max = v; });
-        max = max * 1.1;
-
-        function drawLine(data, color, fill) {
-            if (data.length < 2) return;
-            chartCtx.beginPath();
-            chartCtx.strokeStyle = color;
-            chartCtx.lineWidth = 2;
-            chartCtx.lineJoin = 'round';
+        function drawLine(data, color, fillGradient) {
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 3;
+            ctx.lineJoin = 'round';
             
-            var step = w / (maxChartPoints - 1);
-            for (var i = 0; i < data.length; i++) {
-                var x = i * step;
-                var y = h - (data[i] / max) * h;
-                if (i === 0) chartCtx.moveTo(x, y);
-                else chartCtx.lineTo(x, y);
+            for (let i = 0; i < MAX_DATA_POINTS; i++) {
+                const x = i * stepX;
+                const y = dh - (data[i] / maxVal) * (dh - 20) - 10;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
             }
-            chartCtx.stroke();
+            ctx.stroke();
 
-            if (fill) {
-                chartCtx.lineTo((data.length - 1) * step, h);
-                chartCtx.lineTo(0, h);
-                chartCtx.fillStyle = fill;
-                chartCtx.fill();
-            }
+            // Fill
+            ctx.lineTo(dw, dh);
+            ctx.lineTo(0, dh);
+            ctx.fillStyle = fillGradient;
+            ctx.fill();
         }
 
-        drawLine(chartData.down, '#007aff', 'rgba(0,122,255,0.1)');
-        drawLine(chartData.up, '#5856d6', 'rgba(88,86,214,0.1)');
+        const gradDown = ctx.createLinearGradient(0, 0, 0, dh);
+        gradDown.addColorStop(0, 'rgba(0, 122, 255, 0.2)');
+        gradDown.addColorStop(1, 'rgba(0, 122, 255, 0)');
+
+        const gradUp = ctx.createLinearGradient(0, 0, 0, dh);
+        gradUp.addColorStop(0, 'rgba(88, 86, 214, 0.2)');
+        gradUp.addColorStop(1, 'rgba(88, 86, 214, 0)');
+
+        drawLine(history.down, '#007aff', gradDown);
+        drawLine(history.up, '#5856d6', gradUp);
     }
 
-    function checkOta() {
-        request('/cgi-bin/luci/admin/quickstart/api/system/check-update').then(function(data) {
-            if (data && data.result && data.result.needUpdate) {
-                document.getElementById('swrt-ota-capsule').classList.remove('hidden');
+    // Data Polling
+    let lastTraffic = null;
+    let lastTime = Date.now();
+
+    async function updateStatus() {
+        try {
+            const res = await fetch('/cgi-bin/luci/admin/quickstart/api/system/status');
+            const data = await res.json();
+            const result = data.result || {};
+
+            // Device Name
+            if (result.hostname) document.getElementById('sw-device-name').textContent = result.hostname;
+
+            // Uptime
+            if (result.uptime) {
+                const s = parseInt(result.uptime);
+                const h = Math.floor(s / 3600);
+                const m = Math.floor((s % 3600) / 60);
+                const sec = s % 60;
+                document.getElementById('sw-uptime').textContent = `Uptime: ${h}h ${m}m ${sec}s`;
             }
-        }).catch(function() {});
+
+            // Hardware
+            if (result.cpuUsage) {
+                const cpu = parseInt(result.cpuUsage);
+                document.getElementById('sw-cpu-val').textContent = cpu + '%';
+                document.getElementById('sw-cpu-bar').style.width = cpu + '%';
+            }
+            if (result.memoryUsage) {
+                const mem = parseInt(result.memoryUsage);
+                document.getElementById('sw-mem-val').textContent = mem + '%';
+                document.getElementById('sw-mem-bar').style.width = mem + '%';
+            }
+            if (result.cpuTemperature) {
+                document.getElementById('sw-temp-val').textContent = parseFloat(result.cpuTemperature).toFixed(1) + ' °C';
+            }
+
+            // Network Indicator
+            const netInd = document.getElementById('sw-net-status');
+            const netTxt = netInd.querySelector('.sw-status-text');
+            if (result.wan_ip && result.wan_ip !== '0.0.0.0') {
+                netInd.className = 'sw-status-capsule online';
+                netTxt.textContent = '网络已连接';
+            } else {
+                netInd.className = 'sw-status-capsule offline';
+                netTxt.textContent = '未联通互联网';
+            }
+
+            // Traffic
+            if (result.traffic) {
+                const now = Date.now();
+                const dt = (now - lastTime) / 1000;
+                if (lastTraffic) {
+                    const dBytes = Math.max(0, result.traffic.rx_bytes - lastTraffic.rx_bytes);
+                    const uBytes = Math.max(0, result.traffic.tx_bytes - lastTraffic.tx_bytes);
+                    const dSpeed = dBytes / dt;
+                    const uSpeed = uBytes / dt;
+
+                    history.down.shift();
+                    history.down.push(dSpeed);
+                    history.up.shift();
+                    history.up.push(uSpeed);
+
+                    document.getElementById('sw-val-down').textContent = formatSpeed(dSpeed);
+                    document.getElementById('sw-val-up').textContent = formatSpeed(uSpeed);
+                    drawChart();
+                }
+                lastTraffic = result.traffic;
+                lastTime = now;
+            }
+
+            // Interfaces
+            if (result.interfaces) {
+                const list = document.getElementById('sw-if-list');
+                list.innerHTML = result.interfaces.map(iface => `
+                    <div class="sw-if-item">
+                        <div class="sw-if-info">
+                            <span class="sw-if-name">${iface.name} <span class="sw-if-tag">${iface.device || ''}</span></span>
+                            <span class="sw-if-ip">${iface.ip || '未分配 IP'}</span>
+                        </div>
+                        <div class="sw-if-meta">
+                            <div class="sw-if-speed">${iface.speed ? iface.speed + 'M' : '--'}</div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+        } catch (e) {
+            console.error('Polling error:', e);
+        }
     }
 
-    // Initial load
-    request('/cgi-bin/luci/admin/quickstart/api/u/system/version').then(function(data) {
-        if (data.result && data.result.model) {
-            document.getElementById('swrt-device-name').textContent = data.result.model;
-        }
-    });
+    // OTA Check
+    async function checkOTA() {
+        try {
+            const res = await fetch('/cgi-bin/luci/admin/quickstart/api/system/check-update');
+            const data = await res.json();
+            if (data.update_available) {
+                document.getElementById('sw-ota-alert').classList.remove('hidden');
+            }
+        } catch (e) {}
+    }
 
-    setInterval(updateStatus, pollInterval);
+    setInterval(updateStatus, 2000);
     updateStatus();
-    checkOta();
-    
-    window.addEventListener('resize', drawChart);
+    checkOTA();
 
+    window.addEventListener('resize', drawChart);
 })();

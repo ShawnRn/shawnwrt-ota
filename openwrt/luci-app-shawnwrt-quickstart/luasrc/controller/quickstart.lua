@@ -26,7 +26,7 @@ local function vue_lang()
 end
 
 function index()
-	entry({"admin", "quickstart"}, view("quickstart/home"), _("主页"), 1).leaf = true
+	entry({"admin", "quickstart"}, view("quickstart/index"), _("主页"), 1).leaf = true
 	entry({"admin", "quickstart", "api", "system", "status"}, call("api_system_status")).leaf = true
 	entry({"admin", "quickstart", "api", "u", "system", "version"}, call("api_system_version")).leaf = true
 	entry({"admin", "quickstart", "api", "system", "check-update"}, call("api_check_update")).leaf = true

@@ -251,10 +251,8 @@ for ipk in "${dist_dir}"/*.ipk; do
 	add_package_index "${ipk}"
 done
 
-# raw.githubusercontent.com serves Packages.gz as an opaque blob; this opkg
-# build stores the index as-is, so keep the conventional filename but publish
-# plain text for reliable parsing on the router.
-cp "${dist_dir}/Packages" "${dist_dir}/Packages.gz"
+# opkg src/gz expects a real gzip file.
+gzip -9nk "${dist_dir}/Packages"
 
 if [ -n "${SHAWNWRT_OTA_USIGN_SECRET_KEY:-}" ]; then
 	key_file="$(mktemp)"

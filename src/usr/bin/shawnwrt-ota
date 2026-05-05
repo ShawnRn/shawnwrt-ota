@@ -142,7 +142,7 @@ SIZE=$size
 CHECKED_AT=$(date '+%Y-%m-%d %H:%M:%S %z')"
 
 	mkdir -p "$DOWNLOAD_DIR"
-	printf '%s\n' "$info" >"$CACHE_FILE"
+	printf '%s\n' "$info" > "$CACHE_FILE"
 	printf '%s\n' "$info"
 }
 

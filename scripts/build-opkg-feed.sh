@@ -236,6 +236,10 @@ mkdir -p "${quickstart_data}/www/luci-static/quickstart"
 cp -a \
 	"${repo_root}/openwrt/luci-app-shawnwrt-quickstart/htdocs/luci-static/quickstart/." \
 	"${quickstart_data}/www/luci-static/quickstart/"
+mkdir -p "${quickstart_data}/www/luci-static/resources/view/quickstart"
+cp -a \
+	"${repo_root}/openwrt/luci-app-shawnwrt-quickstart/htdocs/luci-static/resources/view/quickstart/." \
+	"${quickstart_data}/www/luci-static/resources/view/quickstart/"
 mkdir -p "${quickstart_data}/usr/lib/lua/luci/controller"
 install -m 0644 \
 	"${repo_root}/openwrt/luci-app-shawnwrt-quickstart/luasrc/controller/quickstart.lua" \

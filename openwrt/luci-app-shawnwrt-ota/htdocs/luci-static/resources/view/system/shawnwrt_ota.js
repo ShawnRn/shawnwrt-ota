@@ -10,7 +10,7 @@ var L = {
 	subtitle: zh ? '管理 ShawnWrt 系统版本并保持更新。' : _('Manage ShawnWrt system versions and keep updated.'),
 	checking: zh ? '正在检查更新...' : _('Checking...'),
 	upToDate: zh ? '当前已是最新版本' : _('System is up to date'),
-	updateAvailable: zh ? '发现新版本可用' : _('Update Available'),
+	updateAvailable: zh ? '发现新版本' : _('Update Available'),
 	versionInfo: zh ? '版本信息' : _('Version Info'),
 	installedVersion: zh ? '当前固件版本' : _('Installed Version'),
 	latestVersion: zh ? '云端最新版本' : _('Latest Release'),

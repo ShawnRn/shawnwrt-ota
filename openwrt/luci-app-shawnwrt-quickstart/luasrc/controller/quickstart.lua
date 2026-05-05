@@ -7,6 +7,7 @@ module("luci.controller.quickstart", package.seeall)
 
 local function json_response(result, success, extra)
 	local payload = extra or {}
+
 	payload.success = success or 0
 	payload.result = result
 
@@ -15,11 +16,17 @@ local function json_response(result, success, extra)
 end
 
 local function vue_lang()
-	return "zh-cn"
+	local lang = i18n.translate("quickstart_vue_lang")
+
+	if lang == "quickstart_vue_lang" or lang == "" then
+		lang = "en"
+	end
+
+	return lang
 end
 
 function index()
-	entry({"admin", "quickstart"}, template("quickstart/home"), _("主页"), 1).leaf = true
+	entry({"admin", "quickstart"}, view("quickstart/home"), _("主页"), 1).leaf = true
 	entry({"admin", "quickstart", "api", "system", "status"}, call("api_system_status")).leaf = true
 	entry({"admin", "quickstart", "api", "u", "system", "version"}, call("api_system_version")).leaf = true
 	entry({"admin", "quickstart", "api", "system", "check-update"}, call("api_check_update")).leaf = true
@@ -156,6 +163,141 @@ local function uptime_seconds()
 	return math.floor(tonumber((first_line("/proc/uptime") or ""):match("^([%d%.]+)")) or 0)
 end
 
+local function trim(value)
+	if not value then
+		return nil
+	end
+
+	value = tostring(value):gsub("^%s+", ""):gsub("%s+$", "")
+
+	if value == "" then
+		return nil
+	end
+
+	return value
+end
+
+local function json_file(path)
+	local data = fs.readfile(path)
+
+	if not data or data == "" then
+		return nil
+	end
+
+	return util.parse_json(data)
+end
+
+local function interface_info(name)
+	local info = util.ubus("network.interface", "status", { interface = name })
+
+	if type(info) ~= "table" then
+		return nil
+	end
+
+	local device = trim(info.l3_device or info.device)
+	local ipaddr
+	local speed
+
+	if type(info["ipv4-address"]) == "table" and info["ipv4-address"][1] then
+		ipaddr = trim(info["ipv4-address"][1].address)
+	end
+
+	if not ipaddr and type(info["ipv6-address"]) == "table" and info["ipv6-address"][1] then
+		ipaddr = trim(info["ipv6-address"][1].address)
+	end
+
+	if device then
+		local ethtool = trim(util.exec("ethtool " .. device .. " 2>/dev/null | awk -F': ' '/Speed:/ {print $2; exit}'"))
+
+		if ethtool and ethtool ~= "Unknown!" then
+			speed = ethtool
+		end
+	end
+
+	return {
+		device = device or "--",
+		ipaddr = ipaddr or "--",
+		speed = speed or "--",
+		up = info.up and true or false
+	}
+end
+
+local function upstream_info()
+	local default_route = trim(util.exec("ip route show default 2>/dev/null | head -n1"))
+
+	if not default_route then
+		return nil
+	end
+
+	local dev = trim(default_route:match("dev%s+(%S+)"))
+	local gateway = trim(default_route:match("via%s+(%S+)"))
+	local speed
+
+	if dev then
+		speed = trim(util.exec("ethtool " .. dev .. " 2>/dev/null | awk -F': ' '/Speed:/ {print $2; exit}'"))
+	end
+
+	return {
+		device = dev or "--",
+		ipaddr = gateway or "--",
+		speed = speed or "--",
+		up = true
+	}
+end
+
+local function wifi_info()
+	local data = json_file("/tmp/hostapd_channel_analysis.json")
+
+	if type(data) ~= "table" then
+		return nil
+	end
+
+	local radios = data.radios or data
+	local count = 0
+
+	if type(radios) == "table" then
+		for _ in pairs(radios) do
+			count = count + 1
+		end
+	end
+
+	if count == 0 then
+		return nil
+	end
+
+	return {
+		device = count .. " radios",
+		ipaddr = "MTWiFi",
+		speed = "已启用",
+		up = true
+	}
+end
+
+local function arp_devices()
+	local devices = {}
+
+	for line in io.lines("/proc/net/arp") do
+		if not line:match("^IP address") then
+			local ip, _, _, mac, _, dev = line:match("^(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)")
+
+			if ip and mac and mac ~= "00:00:00:00:00:00" then
+				local hostname = trim(util.exec("nslookup " .. ip .. " 127.0.0.1 2>/dev/null | awk -F'= ' '/name =/ {print $2; exit}' | sed 's/\\.$//'"))
+
+				devices[#devices + 1] = {
+					name = hostname or ip,
+					hostname = hostname or ip,
+					ip = ip,
+					mac = mac,
+					device = dev,
+					online = true
+				}
+			end
+		end
+	end
+
+	return devices
+end
+
 function api_system_status()
 	json_response({
 		cpuUsage = cpu_usage(),
@@ -175,43 +317,28 @@ function api_system_version()
 end
 
 function api_check_update()
+	local info = util.exec("/usr/bin/shawnwrt-ota status")
+	local has_update = info:match("STATE=update") and true or false
 	json_response({
-		needUpdate = false,
-		msg = "disabled"
+		needUpdate = has_update,
+		msg = has_update and "update available" or "up to date"
 	})
 end
 
 function api_network_status()
-	local rx = 0
-	local tx = 0
-	local f = io.open("/proc/net/dev", "r")
-	if f then
-		for line in f:lines() do
-			local name, rxb, txb = line:match("^%s*(wan[a-zA-Z0-9_.]*):%s*(%d+)%s+%d+%s+%d+%s+%d+%s+%d+%s+%d+%s+%d+%s+(%d+)")
-			if name then
-				rx = tonumber(rxb) or 0
-				tx = tonumber(txb) or 0
-				break
-			end
-		end
-		f:close()
-	end
-
 	json_response({
 		networkInfo = "netSuccess",
 		uptimeStamp = uptime_seconds(),
-		rx_bytes = rx,
-		tx_bytes = tx
+		upstream = upstream_info(),
+		lan = interface_info("lan") or interface_info("br-lan"),
+		wan = interface_info("wan") or interface_info("wwan"),
+		wifi = wifi_info()
 	})
 end
 
 function api_device_list()
-	local d = {}
-	local h = {}
-	setmetatable(d, {__jsontype="array"})
-	setmetatable(h, {__jsontype="array"})
 	json_response({
-		devices = d,
-		hosts = h
+		devices = arp_devices(),
+		hosts = {}
 	})
 end

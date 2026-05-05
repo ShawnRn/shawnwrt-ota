@@ -1,11 +1,82 @@
-<%
-local function vue_lang()
-    local i18n = require("luci.i18n")
-    local lang = i18n.translate("quickstart_vue_lang")
-    if lang == "quickstart_vue_lang" or lang == "" or lang == "en" then
-        lang = "zh-cn"
-    end
-    return lang
-end
--%>
-<% luci.template.render("quickstart/main", {prefix=luci.dispatcher.build_url("admin", "quickstart"),lang=vue_lang()}) %>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>ShawnWrt - Dashboard</title>
+    <link rel="stylesheet" href="<%=resource%>/quickstart/style.css">
+</head>
+<body class="swrt-quickstart-body">
+    <div id="swrt-dashboard" class="swrt-dashboard">
+        <!-- Header -->
+        <header class="swrt-dash-header">
+            <div class="swrt-dash-title-group">
+                <h1 id="swrt-device-name">ShawnWrt</h1>
+                <div id="swrt-net-indicator" class="swrt-net-status offline">
+                    <span class="swrt-status-dot"></span>
+                    <span class="swrt-status-text">Checking...</span>
+                </div>
+            </div>
+            <div class="swrt-dash-meta">
+                <span id="swrt-uptime">Uptime: --:--:--</span>
+                <div id="swrt-ota-capsule" class="swrt-capsule hidden">Update Available</div>
+            </div>
+        </header>
+
+        <!-- Network Chart Section -->
+        <section class="swrt-dash-section">
+            <div class="swrt-dash-card swrt-chart-card">
+                <div class="swrt-card-header">
+                    <h3>实时网速</h3>
+                    <div class="swrt-speed-legend">
+                        <span class="down"><span class="swrt-legend-dot"></span> 下载 <strong id="swrt-cur-down">0 KB/s</strong></span>
+                        <span class="up"><span class="swrt-legend-dot"></span> 上传 <strong id="swrt-cur-up">0 KB/s</strong></span>
+                    </div>
+                </div>
+                <div class="swrt-chart-container">
+                    <canvas id="swrt-speed-chart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Hardware & Interface Grid -->
+        <section class="swrt-dash-grid">
+            <!-- Hardware Resources -->
+            <div class="swrt-dash-card swrt-hw-card">
+                <h3>硬件资源</h3>
+                <div class="swrt-hw-item">
+                    <label>CPU 使用率</label>
+                    <div class="swrt-progress-track"><div id="swrt-cpu-bar" class="swrt-progress-fill"></div></div>
+                    <span id="swrt-cpu-val">0%</span>
+                </div>
+                <div class="swrt-hw-item">
+                    <label>内存使用率</label>
+                    <div class="swrt-progress-track"><div id="swrt-mem-bar" class="swrt-progress-fill"></div></div>
+                    <span id="swrt-mem-val">0%</span>
+                </div>
+                <div class="swrt-hw-item">
+                    <label>系统温度</label>
+                    <span id="swrt-temp-val">0 °C</span>
+                </div>
+            </div>
+
+            <!-- Interface Info -->
+            <div class="swrt-dash-card swrt-if-card">
+                <h3>接口状态</h3>
+                <div id="swrt-if-list" class="swrt-if-list">
+                    <!-- Dynamic Items -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer Actions -->
+        <footer class="swrt-dash-footer">
+            <button class="swrt-dash-btn" onclick="location.href='<%=luci.dispatcher.build_url('admin/system/reboot')%>'">重启</button>
+            <button class="swrt-dash-btn" onclick="location.href='<%=luci.dispatcher.build_url('admin/network/wireless')%>'">Wi-Fi 设置</button>
+            <button class="swrt-dash-btn" onclick="location.href='<%=luci.dispatcher.build_url('admin/system/shawnwrt-ota')%>'">系统更新</button>
+        </footer>
+    </div>
+
+    <script src="<%=resource%>/quickstart/index.js"></script>
+</body>
+</html>

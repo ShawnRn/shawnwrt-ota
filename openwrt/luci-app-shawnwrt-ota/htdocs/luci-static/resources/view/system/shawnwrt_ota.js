@@ -70,8 +70,11 @@ return view.extend({
 				padding: 0;
 				color: var(--swrt-text, #222);
 			}
+			@media (prefers-color-scheme: dark) {
+				.swrt-ota-wrap { --swrt-text: #eee; }
+			}
 			.swrt-ota-header { margin-bottom: 1.5rem; }
-			.swrt-ota-header h2 { font-size: 1.8rem; font-weight: 700; margin: 0; }
+			.swrt-ota-header h2 { font-size: 1.8rem; font-weight: 700; margin: 0; color: inherit; }
 			.swrt-ota-header p { color: #888; font-size: 0.95rem; margin-top: 0.3rem; }
 
 			.swrt-ota-main-card {
@@ -85,7 +88,7 @@ return view.extend({
 				gap: 2rem;
 			}
 			@media (prefers-color-scheme: dark) {
-				.swrt-ota-main-card { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); }
+				.swrt-ota-main-card { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); }
 			}
 
 			.swrt-ota-status-section {
@@ -95,7 +98,7 @@ return view.extend({
 				border-bottom: 1px solid rgba(0,0,0,0.05);
 				padding-bottom: 1.5rem;
 			}
-			@media (prefers-color-scheme: dark) { .swrt-ota-status-section { border-color: rgba(255,255,255,0.05); } }
+			@media (prefers-color-scheme: dark) { .swrt-ota-status-section { border-color: rgba(255,255,255,0.08); } }
 
 			.swrt-ota-icon-box {
 				width: 56px;
@@ -107,12 +110,12 @@ return view.extend({
 				justify-content: center;
 				flex-shrink: 0;
 			}
-			@media (prefers-color-scheme: dark) { .swrt-ota-icon-box { background: rgba(255,255,255,0.05); } }
+			@media (prefers-color-scheme: dark) { .swrt-ota-icon-box { background: rgba(255,255,255,0.1); } }
 			.swrt-ota-icon-box svg { width: 32px; height: 32px; fill: #555; }
-			@media (prefers-color-scheme: dark) { .swrt-ota-icon-box svg { fill: #aaa; } }
+			@media (prefers-color-scheme: dark) { .swrt-ota-icon-box svg { fill: #ddd; } }
 
 			.swrt-ota-status-content { flex: 1; }
-			.swrt-ota-status-title { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.2rem; }
+			.swrt-ota-status-title { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.2rem; color: inherit; }
 			.swrt-ota-status-desc { font-size: 0.9rem; color: #888; }
 
 			.swrt-ota-info-grid {
@@ -123,8 +126,10 @@ return view.extend({
 
 			.swrt-ota-info-item { display: flex; flex-direction: column; gap: 0.4rem; }
 			.swrt-ota-info-label { font-size: 0.85rem; color: #999; text-transform: uppercase; letter-spacing: 0.5px; }
-			.swrt-ota-info-value { font-size: 1rem; font-weight: 500; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; }
+			@media (prefers-color-scheme: dark) { .swrt-ota-info-label { color: #888; } }
+			.swrt-ota-info-value { font-size: 1rem; font-weight: 500; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; color: inherit; }
 			.swrt-ota-info-value.is-latest { color: #28a745; font-weight: 700; }
+			@media (prefers-color-scheme: dark) { .swrt-ota-info-value.is-latest { color: #34c759; } }
 
 			.swrt-ota-actions { display: flex; gap: 1rem; align-items: center; margin-top: 0.5rem; }
 

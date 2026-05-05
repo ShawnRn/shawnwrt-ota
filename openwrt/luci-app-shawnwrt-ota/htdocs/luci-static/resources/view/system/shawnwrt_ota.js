@@ -143,59 +143,32 @@ return view.extend({
 			.swrt-ota-actions { display: flex; gap: 1.2rem; align-items: center; margin-top: 1rem; }
 
 			.swrt-ota-btn-primary {
-				background: var(--activeColor) !important;
-				color: var(--bttextColor) !important;
-				border: none;
-				padding: 16px 36px;
-				border-radius: 16px;
+				background: #007aff !important;
+				color: #ffffff !important;
+				border: none !important;
+				padding: 14px 32px;
+				border-radius: 14px;
 				font-size: 1rem;
 				font-weight: 700;
 				cursor: pointer;
-				transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-				box-shadow: 0 8px 20px rgba(94, 166, 155, 0.3);
+				transition: all 0.2s ease;
 			}
-			.swrt-ota-btn-primary:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(94, 166, 155, 0.4); filter: brightness(1.1); }
-			.swrt-ota-btn-primary:active { transform: translateY(-1px); }
+			.swrt-ota-btn-primary:hover { background: #0062cc !important; transform: translateY(-1px); }
+			.swrt-ota-btn-primary:active { transform: translateY(0); }
+			.swrt-ota-btn-primary:disabled { background: #cbd5e0 !important; cursor: not-allowed; transform: none; }
 
 			.swrt-ota-btn-secondary {
-				background: var(--inputbgColor) !important;
-				color: var(--inputtextColor) !important;
-				border: 1px solid var(--inputBorder) !important;
-				padding: 16px 32px;
-				border-radius: 16px;
+				background: var(--inputbgColor, rgba(127,127,127,0.1)) !important;
+				color: var(--textColor) !important;
+				border: 1px solid var(--borderColor) !important;
+				padding: 14px 28px;
+				border-radius: 14px;
 				font-size: 1rem;
 				font-weight: 600;
 				cursor: pointer;
 				transition: all 0.2s;
 			}
-			.swrt-ota-btn-secondary:hover { background: var(--badgebgColor) !important; border-color: var(--activeColor) !important; }
-
-			.swrt-ota-btn-primary {
-				background: #007aff;
-				color: #fff !important;
-				border: none;
-				padding: 10px 24px;
-				border-radius: 8px;
-				font-size: 0.95rem;
-				font-weight: 600;
-				cursor: pointer;
-				transition: background 0.2s;
-			}
-			.swrt-ota-btn-primary:hover { background: #006ae6; }
-			.swrt-ota-btn-primary:disabled { background: #ccc; cursor: not-allowed; }
-
-			.swrt-ota-btn-secondary {
-				background: rgba(0,0,0,0.05);
-				color: inherit !important;
-				border: none;
-				padding: 10px 24px;
-				border-radius: 8px;
-				font-size: 0.95rem;
-				font-weight: 600;
-				cursor: pointer;
-			}
-			@media (prefers-color-scheme: dark) { .swrt-ota-btn-secondary { background: rgba(255,255,255,0.1); } }
-			.swrt-ota-btn-secondary:hover { background: rgba(0,0,0,0.08); }
+			.swrt-ota-btn-secondary:hover { background: var(--badgebgColor) !important; border-color: #007aff !important; }
 
 			.swrt-ota-progress-container { width: 100%; max-width: 500px; display: none; margin-top: 1rem; }
 			.swrt-ota-progress-label { display: flex; justify-content: space-between; font-size: 0.85rem; color: #888; margin-bottom: 0.5rem; }

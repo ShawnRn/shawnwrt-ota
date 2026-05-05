@@ -5,11 +5,15 @@
 			"ubus": {
 				"system": ["board", "info"],
 				"network.interface": ["dump"],
-				"network.device": ["status"]
+				"network.device": ["status"],
+				"luci-rpc": ["getDHCPLeases", "getHostHints"],
+				"luci": ["getTempInfo"],
+				"iwinfo": ["info", "assoclist"]
 			},
 			"file": {
 				"/sys/class/thermal/thermal_zone*/temp": ["read"],
 				"/proc/net/dev": ["read"],
+				"/proc/net/arp": ["read"],
 				"/sys/class/net/*/speed": ["read"],
 				"/etc/shawnwrt_version": ["read"]
 			}

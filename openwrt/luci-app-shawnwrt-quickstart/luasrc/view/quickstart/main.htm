@@ -36,6 +36,7 @@
       window.token = "<%=token%>";
       var vue_prefix="<%=prefix%>";
       window.vue_base = vue_prefix + '/';
+      window.vue_api_prefix = vue_prefix + '/api';
       window.vue_lang_data = '/luci-static/quickstart/i18n/<%=lang%>.json<%# ?v=PKG_VERSION %>';
       window.vue_lang = '<%=lang%>';
       window.quickstart_features = <%=jsonc.stringify(features)%>;

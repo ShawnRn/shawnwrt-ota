@@ -15,18 +15,7 @@ local function json_response(result, success, extra)
 end
 
 local function vue_lang()
-	local lang = i18n.translate("quickstart_vue_lang")
-	local syslang = require("luci.config").main.lang
-
-	if syslang == "zh_Hans" or syslang == "zh-cn" then
-		lang = "zh-cn"
-	end
-
-	if lang == "quickstart_vue_lang" or lang == "" then
-		lang = "zh-cn"
-	end
-
-	return lang
+	return "zh-cn"
 end
 
 function index()

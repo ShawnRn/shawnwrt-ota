@@ -11,8 +11,10 @@
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
             color: var(--sw-text);
             max-width: 1200px;
-            margin: 1.5rem auto;
+            margin: 1rem auto;
             padding: 0 1rem;
+            position: relative;
+            z-index: 1;
             animation: swrt-entrance 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
 
@@ -47,7 +49,8 @@
             gap: 0.6rem;
             margin-top: 0.8rem;
             padding: 6px 14px;
-            background: rgba(127,127,127,0.05);
+            background: var(--badgebgColor, rgba(127,127,127,0.05));
+            border: 1px solid var(--sw-border);
             border-radius: 100px;
             font-size: 0.9rem;
             font-weight: 600;
@@ -82,14 +85,16 @@
         }
 
         .sw-card {
-            background: var(--sw-bg) !important;
-            border: 1px solid var(--sw-border) !important;
-            border-radius: 30px;
+            background: var(--sectionbgColor) !important;
+            border: 1px solid var(--borderColor) !important;
+            border-radius: 24px;
             padding: 2rem;
-            box-shadow: var(--sw-card-shadow);
-            transition: box-shadow 0.3s;
+            box-shadow: var(--sectionShaddow);
+            transition: all 0.3s;
+            position: relative;
+            z-index: 1;
         }
-        .sw-card:hover { box-shadow: 0 12px 40px rgba(0,0,0,0.08); }
+        .sw-card:hover { box-shadow: 0 12px 40px rgba(0,0,0,0.1); transform: translateY(-2px); }
 
         .sw-card-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; }
 

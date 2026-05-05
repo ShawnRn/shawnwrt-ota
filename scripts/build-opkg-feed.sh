@@ -228,17 +228,17 @@ build_ipk "luci-app-shawnwrt-channel-analysis" "${channel_version}" "${channel_r
 	"ShawnWrt MTK channel analysis" "${channel_data}"
 rm -rf "${channel_data}"
 
-index_version="$(sed -n 's/^PKG_VERSION:=//p' "${repo_root}/openwrt/luci-app-shawnwrt-quickstart/Makefile")"
-index_release="$(sed -n 's/^PKG_RELEASE:=//p' "${repo_root}/openwrt/luci-app-shawnwrt-quickstart/Makefile")"
+index_version="$(sed -n 's/^PKG_VERSION:=//p' "${repo_root}/openwrt/luci-app-shawnwrt-index/Makefile")"
+index_release="$(sed -n 's/^PKG_RELEASE:=//p' "${repo_root}/openwrt/luci-app-shawnwrt-index/Makefile")"
 index_data="$(mktemp -d)"
 
 # Root overlay (menu JSON, ACL JSON, uci-defaults, etc.)
-cp -a "${repo_root}/openwrt/luci-app-shawnwrt-quickstart/root/." "${index_data}/"
+cp -a "${repo_root}/openwrt/luci-app-shawnwrt-index/root/." "${index_data}/"
 
 # JS view
 mkdir -p "${index_data}/www/luci-static/resources/view/index"
 install -m 0644 \
-	"${repo_root}/openwrt/luci-app-shawnwrt-quickstart/htdocs/luci-static/resources/view/index/home.js" \
+	"${repo_root}/openwrt/luci-app-shawnwrt-index/htdocs/luci-static/resources/view/index/home.js" \
 	"${index_data}/www/luci-static/resources/view/index/home.js"
 
 build_ipk "luci-app-shawnwrt-index" "${index_version}" "${index_release}" \

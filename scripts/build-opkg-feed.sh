@@ -232,22 +232,18 @@ quickstart_version="$(sed -n 's/^PKG_VERSION:=//p' "${repo_root}/openwrt/luci-ap
 quickstart_release="$(sed -n 's/^PKG_RELEASE:=//p' "${repo_root}/openwrt/luci-app-shawnwrt-quickstart/Makefile")"
 quickstart_data="$(mktemp -d)"
 cp -a "${repo_root}/openwrt/luci-app-shawnwrt-quickstart/root/." "${quickstart_data}/"
-mkdir -p "${quickstart_data}/www/luci-static/quickstart"
+mkdir -p "${quickstart_data}/www/luci-static/resources/index"
 cp -a \
-	"${repo_root}/openwrt/luci-app-shawnwrt-quickstart/htdocs/luci-static/quickstart/." \
-	"${quickstart_data}/www/luci-static/quickstart/"
-mkdir -p "${quickstart_data}/www/luci-static/resources/view/quickstart"
-cp -a \
-	"${repo_root}/openwrt/luci-app-shawnwrt-quickstart/htdocs/luci-static/resources/view/quickstart/." \
-	"${quickstart_data}/www/luci-static/resources/view/quickstart/"
+	"${repo_root}/openwrt/luci-app-shawnwrt-quickstart/htdocs/luci-static/resources/index/." \
+	"${quickstart_data}/www/luci-static/resources/index/"
 mkdir -p "${quickstart_data}/usr/lib/lua/luci/controller"
 install -m 0644 \
 	"${repo_root}/openwrt/luci-app-shawnwrt-quickstart/luasrc/controller/quickstart.lua" \
 	"${quickstart_data}/usr/lib/lua/luci/controller/quickstart.lua"
-mkdir -p "${quickstart_data}/usr/lib/lua/luci/view/quickstart"
+mkdir -p "${quickstart_data}/usr/lib/lua/luci/view/index"
 cp -a \
-	"${repo_root}/openwrt/luci-app-shawnwrt-quickstart/luasrc/view/quickstart/." \
-	"${quickstart_data}/usr/lib/lua/luci/view/quickstart/"
+	"${repo_root}/openwrt/luci-app-shawnwrt-quickstart/luasrc/view/index/." \
+	"${quickstart_data}/usr/lib/lua/luci/view/index/"
 mkdir -p "${quickstart_data}/usr/lib/lua/luci/i18n"
 compile_lmo \
 	"${repo_root}/openwrt/luci-app-shawnwrt-quickstart/po/zh-cn/quickstart.po" \

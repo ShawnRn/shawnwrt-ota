@@ -15,10 +15,16 @@ end
 
 function get_json_lib()
     local ok, json = pcall(require, "luci.jsonc")
-    if ok then return json end
+    if ok then 
+        -- In luci.jsonc, it's stringify
+        if json.stringify then return json, json.stringify end
+    end
     ok, json = pcall(require, "luci.json")
-    if ok then return json end
-    return nil
+    if ok then 
+        -- In old luci.json, it's encode
+        if json.encode then return json, json.encode end
+    end
+    return nil, nil
 end
 
 function api_system_status()
@@ -26,7 +32,7 @@ function api_system_status()
     local sys = require "luci.sys"
     local utl = require "luci.util"
     local http = require "luci.http"
-    local json = get_json_lib()
+    local json_lib, encode = get_json_lib()
 
     local result = {
         hostname = sys.hostname(),
@@ -102,23 +108,22 @@ function api_system_status()
     end
 
     http.prepare_content("application/json")
-    if json then
-        http.write(json.encode({result = result}))
+    if encode then
+        http.write(encode(json_lib, {result = result}))
     else
-        -- Fallback to manual JSON if no lib found (very unlikely)
-        http.write('{"result":{"hostname":"' .. result.hostname .. '","uptime":' .. result.uptime .. '}}')
+        http.write('{"result":{"hostname":"' .. result.hostname .. '"}}')
     end
 end
 
 function api_check_update()
     local utl = require "luci.util"
     local http = require "luci.http"
-    local json = get_json_lib()
+    local _, encode = get_json_lib()
     local check = utl.exec("/usr/bin/shawnwrt-ota status 2>/dev/null")
     local update = (check:find("Update Available") or check:find("发现新版本")) and true or false
     http.prepare_content("application/json")
-    if json then
-        http.write(json.encode({update_available = update}))
+    if encode then
+        http.write(encode({update_available = update}))
     else
         http.write('{"update_available":' .. (update and 'true' or 'false') .. '}')
     end
@@ -127,11 +132,11 @@ end
 function api_system_version()
     local utl = require "luci.util"
     local http = require "luci.http"
-    local json = get_json_lib()
+    local _, encode = get_json_lib()
     local version = utl.exec("cat /etc/shawnwrt_version 2>/dev/null || cat /etc/openwrt_version"):gsub("\n", "")
     http.prepare_content("application/json")
-    if json then
-        http.write(json.encode({version = version}))
+    if encode then
+        http.write(encode({version = version}))
     else
         http.write('{"version":"' .. version .. '"}')
     end

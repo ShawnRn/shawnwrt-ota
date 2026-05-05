@@ -139,6 +139,12 @@
         <button class="sw-btn" onclick="if(confirm('重启路由器？')) location.href='<%=luci.dispatcher.build_url('admin/system/reboot')%>'">重启</button>
     </footer>
 
+    <script>
+        window.SW_API = {
+            status: '<%=luci.dispatcher.build_url("admin", "index", "api", "system", "status")%>',
+            checkUpdate: '<%=luci.dispatcher.build_url("admin", "index", "api", "system", "check-update")%>'
+        };
+    </script>
     <script src="/luci-static/resources/index/index.js?v=<%=os.time()%>"></script>
 </div>
 <%+footer%>

@@ -1,168 +1,115 @@
 (function() {
-    // Utility: Detect LuCI base URL and token
-    const baseUrl = window.location.pathname.split('/admin/')[0] + '/admin';
-    const stokMatch = window.location.href.match(/stok=([a-f0-9]+)/);
-    const stok = stokMatch ? stokMatch[1] : null;
-
-    function getApiUrl(path) {
-        let url = baseUrl + '/' + path;
-        if (stok) {
-            url = window.location.pathname.split(';stok=')[0] + ';stok=' + stok + '/admin/' + path;
-        }
-        return url;
-    }
-
-    // Utility: Format bytes
     function formatSpeed(bytes) {
         if (!bytes || bytes === 0) return '0 B/s';
-        const k = 1024;
-        const sizes = ['B/s', 'KB/s', 'MB/s', 'GB/s'];
+        const k = 1024, sizes = ['B/s', 'KB/s', 'MB/s', 'GB/s'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
-    // Chart logic
-    const canvas = document.getElementById('sw-speed-chart');
+    const canvas = document.getElementById('sw-main-chart');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    const MAX_DATA_POINTS = 60;
-    const history = { down: new Array(MAX_DATA_POINTS).fill(0), up: new Array(MAX_DATA_POINTS).fill(0) };
+    const MAX_PTS = 60;
+    const history = { down: new Array(MAX_PTS).fill(0), up: new Array(MAX_PTS).fill(0) };
 
     function drawChart() {
         const w = canvas.width = canvas.parentElement.clientWidth * window.devicePixelRatio;
         const h = canvas.height = canvas.parentElement.clientHeight * window.devicePixelRatio;
         ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-        const dw = canvas.parentElement.clientWidth;
-        const dh = canvas.parentElement.clientHeight;
-
+        const dw = canvas.parentElement.clientWidth, dh = canvas.parentElement.clientHeight;
         ctx.clearRect(0, 0, dw, dh);
-        const maxVal = Math.max(...history.down, ...history.up, 1024 * 10);
-        const stepX = dw / (MAX_DATA_POINTS - 1);
+        const maxVal = Math.max(...history.down, ...history.up, 1024 * 50);
+        const stepX = dw / (MAX_PTS - 1);
 
-        function drawLine(data, color, fillGradient) {
-            ctx.beginPath();
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 3;
-            ctx.lineJoin = 'round';
-            for (let i = 0; i < MAX_DATA_POINTS; i++) {
-                const x = i * stepX;
-                const y = dh - (data[i] / maxVal) * (dh - 40) - 20;
-                if (i === 0) ctx.moveTo(x, y);
-                else ctx.lineTo(x, y);
+        function drawLine(data, color, fill) {
+            ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.lineJoin = 'round';
+            for (let i = 0; i < MAX_PTS; i++) {
+                const x = i * stepX, y = dh - (data[i] / maxVal) * (dh - 40) - 20;
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
             }
-            ctx.stroke();
-            ctx.lineTo(dw, dh);
-            ctx.lineTo(0, dh);
-            ctx.fillStyle = fillGradient;
-            ctx.fill();
+            ctx.stroke(); ctx.lineTo(dw, dh); ctx.lineTo(0, dh); ctx.fillStyle = fill; ctx.fill();
         }
 
-        const gradDown = ctx.createLinearGradient(0, 0, 0, dh);
-        gradDown.addColorStop(0, 'rgba(0, 122, 255, 0.2)');
-        gradDown.addColorStop(1, 'rgba(0, 122, 255, 0)');
-        const gradUp = ctx.createLinearGradient(0, 0, 0, dh);
-        gradUp.addColorStop(0, 'rgba(88, 86, 214, 0.2)');
-        gradUp.addColorStop(1, 'rgba(88, 86, 214, 0)');
+        const gD = ctx.createLinearGradient(0, 0, 0, dh); gD.addColorStop(0, 'rgba(0,122,255,0.2)'); gD.addColorStop(1, 'transparent');
+        const gU = ctx.createLinearGradient(0, 0, 0, dh); gU.addColorStop(0, 'rgba(88,86,214,0.2)'); gU.addColorStop(1, 'transparent');
 
-        drawLine(history.down, '#007aff', gradDown);
-        drawLine(history.up, '#5856d6', gradUp);
+        drawLine(history.down, '#007aff', gD);
+        drawLine(history.up, '#5856d6', gU);
     }
 
-    // Data Polling
-    let lastTraffic = null;
-    let lastTime = Date.now();
-
-    async function updateStatus() {
+    let lastT = null, lastM = Date.now();
+    async function update() {
+        if (!window.SW_API || !window.SW_API.status) return;
         try {
-            const res = await fetch(getApiUrl('index/api/system/status'));
+            const res = await fetch(window.SW_API.status, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
             if (!res.ok) throw new Error('HTTP ' + res.status);
             const data = await res.json();
-            const result = data.result || {};
+            const r = data.result || {};
 
-            if (result.hostname) document.getElementById('sw-device-name').textContent = result.hostname;
+            if (r.hostname) document.getElementById('sw-dev-name').textContent = r.hostname;
+            if (r.uptime) {
+                const s = parseInt(r.uptime), h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sc = s%60;
+                document.getElementById('sw-uptime-val').textContent = `Uptime: ${h}h ${m}m ${sc}s`;
+            }
+            if (r.cpuUsage !== undefined) {
+                document.getElementById('sw-cpu-label').textContent = r.cpuUsage + '%';
+                document.getElementById('sw-cpu-fill').style.width = r.cpuUsage + '%';
+            }
+            if (r.memoryUsage !== undefined) {
+                document.getElementById('sw-mem-label').textContent = r.memoryUsage + '%';
+                document.getElementById('sw-mem-fill').style.width = r.memoryUsage + '%';
+            }
+            if (r.cpuTemperature) document.getElementById('sw-temp-label').textContent = parseFloat(r.cpuTemperature).toFixed(1) + ' °C';
 
-            if (result.uptime) {
-                const s = parseInt(result.uptime);
-                const h = Math.floor(s / 3600);
-                const m = Math.floor((s % 3600) / 60);
-                const sec = s % 60;
-                document.getElementById('sw-uptime').textContent = `Uptime: ${h}h ${m}m ${sec}s`;
-            }
-
-            if (result.cpuUsage !== undefined) {
-                const cpu = parseInt(result.cpuUsage);
-                document.getElementById('sw-cpu-val').textContent = cpu + '%';
-                document.getElementById('sw-cpu-bar').style.width = cpu + '%';
-            }
-            if (result.memoryUsage !== undefined) {
-                const mem = parseInt(result.memoryUsage);
-                document.getElementById('sw-mem-val').textContent = mem + '%';
-                document.getElementById('sw-mem-bar').style.width = mem + '%';
-            }
-            if (result.cpuTemperature) {
-                document.getElementById('sw-temp-val').textContent = parseFloat(result.cpuTemperature).toFixed(1) + ' °C';
-            }
-
-            const netInd = document.getElementById('sw-net-status');
-            const netTxt = netInd.querySelector('.sw-status-text');
-            if (result.wan_ip && result.wan_ip !== '0.0.0.0') {
-                netInd.className = 'sw-status-capsule online';
-                netTxt.textContent = '网络已连接';
+            const nI = document.getElementById('sw-net-status');
+            const nT = nI.querySelector('.sw-status-text');
+            if (r.wan_ip && r.wan_ip !== '0.0.0.0') {
+                nI.className = 'sw-status online'; nT.textContent = '网络已连接';
             } else {
-                netInd.className = 'sw-status-capsule offline';
-                netTxt.textContent = '正在确认联通性...';
+                nI.className = 'sw-status offline'; nT.textContent = '检测互联网连接...';
             }
 
-            if (result.traffic) {
-                const now = Date.now();
-                const dt = (now - lastTime) / 1000;
-                if (lastTraffic && dt > 0) {
-                    const dBytes = Math.max(0, result.traffic.rx_bytes - lastTraffic.rx_bytes);
-                    const uBytes = Math.max(0, result.traffic.tx_bytes - lastTraffic.tx_bytes);
-                    const dSpeed = dBytes / dt;
-                    const uSpeed = uBytes / dt;
-
-                    history.down.shift(); history.down.push(dSpeed);
-                    history.up.shift(); history.up.push(uSpeed);
-
-                    document.getElementById('sw-val-down').textContent = formatSpeed(dSpeed);
-                    document.getElementById('sw-val-up').textContent = formatSpeed(uSpeed);
+            if (r.traffic) {
+                const now = Date.now(), dt = (now - lastM) / 1000;
+                if (lastT && dt > 0) {
+                    const dS = (r.traffic.rx_bytes - lastT.rx_bytes) / dt, uS = (r.traffic.tx_bytes - lastT.tx_bytes) / dt;
+                    history.down.shift(); history.down.push(dS); history.up.shift(); history.up.push(uS);
+                    document.getElementById('sw-down-speed').textContent = formatSpeed(dS);
+                    document.getElementById('sw-up-speed').textContent = formatSpeed(uS);
                     drawChart();
                 }
-                lastTraffic = result.traffic;
-                lastTime = now;
+                lastT = r.traffic; lastM = now;
             }
 
-            if (result.interfaces) {
-                const list = document.getElementById('sw-if-list');
-                list.innerHTML = result.interfaces.map(iface => `
-                    <div class="sw-if-item">
-                        <div class="sw-if-info">
-                            <span class="sw-if-name">${iface.name} <span class="sw-if-tag">${iface.device || ''}</span></span>
-                            <span class="sw-if-ip">${iface.ip || '未分配 IP'}</span>
+            if (r.interfaces) {
+                document.getElementById('sw-if-list-box').innerHTML = r.interfaces.map(i => `
+                    <div class="sw-if-row">
+                        <div class="sw-if-data">
+                            <div class="sw-if-name">${i.name} <small style="opacity:0.6">${i.device||''}</small></div>
+                            <div class="sw-if-ip">${i.ip||'--'}</div>
                         </div>
-                        <div class="sw-if-meta">
-                            <div class="sw-if-speed">${iface.speed ? iface.speed + 'M' : '--'}</div>
-                        </div>
+                        <div style="font-weight:600">${i.speed?i.speed+'M':''}</div>
                     </div>
                 `).join('');
             }
         } catch (e) {
-            console.error('Polling error:', e);
-            document.getElementById('sw-net-status').querySelector('.sw-status-text').textContent = 'API 连接失败: ' + e.message;
+            console.error(e);
+            document.getElementById('sw-net-status').querySelector('.sw-status-text').textContent = 'API 连接失败';
         }
     }
 
     async function checkOTA() {
+        if (!window.SW_API || !window.SW_API.checkUpdate) return;
         try {
-            const res = await fetch(getApiUrl('index/api/system/check-update'));
+            const res = await fetch(window.SW_API.checkUpdate);
             const data = await res.json();
-            if (data.update_available) document.getElementById('sw-ota-alert').classList.remove('hidden');
+            if (data.update_available) document.getElementById('sw-ota-badge').classList.remove('hidden');
         } catch (e) {}
     }
 
-    setInterval(updateStatus, 2000);
-    updateStatus();
+    setInterval(update, 2000); update();
     checkOTA();
     window.addEventListener('resize', drawChart);
 })();

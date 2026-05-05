@@ -66,7 +66,7 @@
 
     async function updateStatus() {
         try {
-            const res = await fetch('/cgi-bin/luci/admin/quickstart/api/system/status');
+            const res = await fetch('/cgi-bin/luci/admin/index/api/system/status');
             const data = await res.json();
             const result = data.result || {};
 
@@ -155,7 +155,7 @@
     // OTA Check
     async function checkOTA() {
         try {
-            const res = await fetch('/cgi-bin/luci/admin/quickstart/api/system/check-update');
+            const res = await fetch('/cgi-bin/luci/admin/index/api/system/check-update');
             const data = await res.json();
             if (data.update_available) {
                 document.getElementById('sw-ota-alert').classList.remove('hidden');

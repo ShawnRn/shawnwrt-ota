@@ -216,6 +216,8 @@ channel_version="$(sed -n 's/^PKG_VERSION:=//p' "${repo_root}/openwrt/luci-app-s
 channel_release="$(sed -n 's/^PKG_RELEASE:=//p' "${repo_root}/openwrt/luci-app-shawnwrt-channel-analysis/Makefile")"
 channel_data="$(mktemp -d)"
 cp -a "${repo_root}/openwrt/luci-app-shawnwrt-channel-analysis/root/." "${channel_data}/"
+# rpcd plugins must be executable for ubus registration
+find "${channel_data}/usr/libexec/rpcd/" -type f -exec chmod +x {} \;
 mkdir -p "${channel_data}/www/luci-static/resources/view/status"
 install -m 0644 \
 	"${repo_root}/openwrt/luci-app-shawnwrt-channel-analysis/htdocs/luci-static/resources/view/status/shawnwrt_channel_analysis.js" \

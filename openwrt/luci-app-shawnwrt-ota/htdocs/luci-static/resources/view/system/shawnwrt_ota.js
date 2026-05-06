@@ -361,14 +361,14 @@ return view.extend({
 
 					setTimeout(pollJob, 1500);
 				} else {
-					if (exitCode === '0') {
+					if (exitCode === '0' || exitCode === '') {
 						runOta(['status']).then(function(s) {
 							var info = parseInfo(s.stdout);
 							updateUI(info);
 							progressContainer.style.display = 'none';
 							actionBtn.style.display = 'block';
 						});
-					} else if (exitCode !== '') {
+					} else {
 						statusTitle.textContent = L.error;
 						statusTitle.style.color = '#ff3b30';
 						actionBtn.disabled = false;

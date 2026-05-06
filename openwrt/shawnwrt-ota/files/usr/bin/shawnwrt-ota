@@ -324,19 +324,27 @@ download_firmware() {
 
 	if [ ! -s "$out" ]; then
 		rm -f "$tmp"
-		# Try to use stdbuf to ensure line buffering for progress parsing
-		curl -fsSLo "$tmp" \
+		# Parse curl progress output without stdbuf (not available on OpenWrt)
+		(curl -fsSLo "$tmp" \
 			--retry 3 \
 			--retry-all-errors \
 			--retry-delay 2 \
 			--connect-timeout 20 \
 			--max-time 900 \
 			--progress-bar \
-			"$url" 2>&1 | stdbuf -oL tr '\r' '\n' | stdbuf -oL sed -u 's/.* \([0-9.]*\)%/\1/' | while read -r p; do
-				case "$p" in
-					[0-9]*) update_progress "$p" ;;
-				esac
-			done || {
+			"$url" 2>&1 & PID=$!; \
+		while kill -0 "$PID" 2>/dev/null; do \
+			if [ -f "$tmp" ]; then \
+				SIZE=$(curl -sI "$url" 2>/dev/null | grep -i Content-Length | awk '{print $2}' | tr -d '\r\n'); \
+				if [ -n "$SIZE" ] && [ "$SIZE" -gt 0 ]; then \
+					CUR=$(stat -c %s "$tmp" 2>/dev/null || echo 0); \
+					PRG=$(( CUR * 100 / SIZE )); \
+					update_progress "$PRG"; \
+				fi; \
+			fi; \
+			sleep 1; \
+		done; \
+		wait "$PID") || {
 				rm -f "$tmp"
 				die "download failed: $url"
 			}

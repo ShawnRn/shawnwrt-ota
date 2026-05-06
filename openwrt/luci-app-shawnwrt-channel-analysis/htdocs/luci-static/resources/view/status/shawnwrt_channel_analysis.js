@@ -1471,19 +1471,19 @@ return view.extend({
 							]);
 						})),
 						E('div', { 'class': 'shawnwrt-control-grid' }, [
-							selectControl(_('2.4 GHz power'), coverageState.tx2g, txValues, function(v) { coverageState.tx2g = Number(v); render(); }),
-							selectControl(_('5 GHz power'), coverageState.tx5g, txValues, function(v) { coverageState.tx5g = Number(v); render(); }),
-							numberControl(_('2.4GHz Roaming (dBm)'), coverageState.steer_2g, function(v) { coverageState.steer_2g = v; render(); }),
-							numberControl(_('5GHz Roaming (dBm)'), coverageState.steer_5g, function(v) { coverageState.steer_5g = v; render(); })
-						]),
-						E('div', { 'class': 'shawnwrt-toggle-grid' }, [
-							toggleControl(_('Smart Roaming'), coverageState.steer_enabled, function(v) { coverageState.steer_enabled = v; render(); }),
-							toggleControl(_('Band steering'), coverageState.bandsteering, function(v) { coverageState.bandsteering = v; render(); }),
-							toggleControl(_('Unify SSID'), coverageState.unify, function(v) { coverageState.unify = v; render(); }),
-							toggleControl(_('802.11k neighbor report'), coverageState.ieee80211k, function(v) { coverageState.ieee80211k = v; render(); }),
-							toggleControl(_('802.11v BSS Transition'), coverageState.ieee80211v, function(v) { coverageState.ieee80211v = v; render(); }),
-							toggleControl(_('802.11r fast roaming'), coverageState.ieee80211r, function(v) { coverageState.ieee80211r = v; render(); })
-						]),
+						selectControl(_('2.4 GHz power'), coverageState.tx2g, txValues, function(v) { coverageState.tx2g = Number(v); refreshCoverage(); }),
+						selectControl(_('5 GHz power'), coverageState.tx5g, txValues, function(v) { coverageState.tx5g = Number(v); refreshCoverage(); }),
+						numberControl(_('2.4GHz Roaming (dBm)'), coverageState.steer_2g, function(v) { coverageState.steer_2g = v; refreshCoverage(); }),
+						numberControl(_('5GHz Roaming (dBm)'), coverageState.steer_5g, function(v) { coverageState.steer_5g = v; refreshCoverage(); })
+					]),
+					E('div', { 'class': 'shawnwrt-toggle-grid' }, [
+						toggleControl(_('Smart Roaming'), coverageState.steer_enabled, function(v) { coverageState.steer_enabled = v; refreshCoverage(); }),
+						toggleControl(_('Band steering'), coverageState.bandsteering, function(v) { coverageState.bandsteering = v; refreshCoverage(); }),
+						toggleControl(_('Unify SSID'), coverageState.unify, function(v) { coverageState.unify = v; refreshCoverage(); }),
+						toggleControl(_('802.11k neighbor report'), coverageState.ieee80211k, function(v) { coverageState.ieee80211k = v; refreshCoverage(); }),
+						toggleControl(_('802.11v BSS Transition'), coverageState.ieee80211v, function(v) { coverageState.ieee80211v = v; refreshCoverage(); }),
+						toggleControl(_('802.11r fast roaming'), coverageState.ieee80211r, function(v) { coverageState.ieee80211r = v; refreshCoverage(); })
+					]),
 						E('div', { 'class': 'shawnwrt-control-grid' }, [
 							textControl(_('Unified SSID'), coverageState.ssid, 'text', coverageState.unify !== '1', function(value) { setCoverageState({ ssid: value, id: 'custom' }); }),
 							selectControl(_('Unified encryption'), coverageState.encryption, encryptionValues, function(value) { setCoverageState({ encryption: value, id: 'custom' }); }),

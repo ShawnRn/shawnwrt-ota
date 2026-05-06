@@ -3,6 +3,7 @@
 'require poll';
 'require rpc';
 'require fs';
+'require uci';
 
 var callSystemBoard = rpc.declare({object:'system',method:'board'});
 var callSystemInfo = rpc.declare({object:'system',method:'info'});
@@ -202,7 +203,8 @@ return view.extend({
 			fs.read('/proc/net/dev').catch(function(){return'';}),
 			fs.exec('/usr/bin/shawnwrt-ota',['status']).catch(function(){return{stdout:''};}),
 			callDHCPLeases().catch(function(){return{};}),
-			callHostHints().catch(function(){return{};})
+			callHostHints().catch(function(){return{};}),
+			uci.load('shawnwrt_ota').catch(function(){})
 		]);
 	},
 
@@ -235,6 +237,20 @@ return view.extend({
 			var p=l.indexOf('=');if(p>0)otaInfo[l.slice(0,p)]=l.slice(p+1);
 		});
 		var hasUpdate=otaInfo.STATE==='update';
+		
+		/* Check for recent update success - show capsule if updated in last 24h */
+		var showUpdateSuccess = false;
+		var lastInstalled = uci.get('shawnwrt_ota', 'state', 'installed_at') || '';
+		var prevShown = sessionStorage.getItem('sw-ota-shown') || '';
+		if (lastInstalled && lastInstalled !== prevShown) {
+			try {
+				var installedTime = new Date(lastInstalled.replace(/ /, 'T')).getTime();
+				var now = Date.now();
+				if (now - installedTime < 86400000) {
+					showUpdateSuccess = true;
+				}
+			} catch(e) {}
+		}
 
 		/* Previous net stats for delta calc */
 		var prevStats=parseNetDev(netdevText);
@@ -253,6 +269,7 @@ return view.extend({
 '.sw-dot-err{background:#ff3b30;box-shadow:0 0 5px rgba(255,59,48,.4)}'+
 '.sw-ota-pill{background:linear-gradient(135deg,#007aff,#5856d6);color:#fff!important;cursor:pointer;text-decoration:none;font-weight:700}'+
 '.sw-ota-pill:hover{opacity:.88}'+
+'@keyframes swPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.85;transform:scale(1.02)}}'+
 '.sw-card{background:var(--panel-bg,#fff);border:1px solid var(--border,rgba(0,0,0,.06));border-radius:14px;padding:1.2rem 1.4rem;margin-bottom:1rem;box-shadow:0 1px 8px rgba(0,0,0,.03)}'+
 '.sw-card-t{font-size:.8rem;font-weight:700;margin-bottom:.8rem;padding-bottom:.6rem;border-bottom:1px solid var(--border,rgba(0,0,0,.05));display:flex;align-items:center;gap:.5rem;color:var(--foreground,#1d1d1f);text-transform:uppercase;letter-spacing:.03em;opacity:.65}'+
 '.sw-ic-wrap{display:inline-flex;align-items:center;justify-content:center;opacity:.7}'+
@@ -313,9 +330,14 @@ return view.extend({
 
 		/* Header */
 		var hdrRight=E('div',{class:'sw-hdr-right'},[
-			hasUpdate?E('a',{class:'sw-pill sw-ota-pill',href:L.url('admin/system/shawnwrt-ota')},[E('span',{innerHTML:IC.ota}),' 有新版本']):null,
-			E('div',{class:'sw-pill'},[E('span',{innerHTML:IC.clock}),' ',elUptime,' · ',elDot,' ',elNetText])
+			showUpdateSuccess?E('div',{class:'sw-pill sw-ota-success-pill',style:'background:linear-gradient(135deg,#34c759,#30d158);color:#fff;animation:swPulse 2s ease-in-out infinite'},[E('span',{innerHTML:IC.ota}),' \u5df2\u66f4\u65b0\u5230\u6700\u65b0\u7248\u672c']):null,
+			hasUpdate?E('a',{class:'sw-pill sw-ota-pill',href:L.url('admin/system/shawnwrt-ota')},[E('span',{innerHTML:IC.ota}),' \u6709\u65b0\u7248\u672c']):null,
+			E('div',{class:'sw-pill'},[E('span',{innerHTML:IC.clock}),' ',elUptime,' \u00b7 ',elDot,' ',elNetText])
 		].filter(Boolean));
+		
+		if (showUpdateSuccess) {
+			sessionStorage.setItem('sw-ota-shown', lastInstalled);
+		}
 
 		var chartCanvas=E('canvas',{style:'cursor:crosshair'});
 		var chartTooltip=E('div',{class:'sw-tooltip'});

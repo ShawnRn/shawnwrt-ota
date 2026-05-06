@@ -18,6 +18,13 @@ var callSiteSurvey = rpc.declare({
 	expect: { results: {} }
 });
 
+var callRawSiteSurvey = rpc.declare({
+	object: 'shawnwrt_channel',
+	method: 'get_raw_site_survey',
+	params: [ 'device' ],
+	expect: { results: [] }
+});
+
 var callInfo = rpc.declare({
 	object: 'iwinfo',
 	method: 'info',
@@ -52,7 +59,7 @@ function bandFromChannel(channel) {
 	return 'unknown';
 }
 
-function channelWidth(ap) {
+function channelWidth(ap, raw) {
 	var widths = [];
 
 	function addWidth(value) {
@@ -77,14 +84,36 @@ function channelWidth(ap) {
 	if (ap.ht_operation)
 		addWidth(ap.ht_operation.channel_width);
 
+	// Fallback: use raw survey data (wmode + extch) when iwinfo scan doesn't provide channel_width
+	if (raw && raw.wmode) {
+		if (raw.extch === 'ABOVE' || raw.extch === 'BELOW')
+			addWidth(40);
+		else {
+			// 11ax without extch usually means 80MHz on MTK
+			if (/11ax/.test(raw.wmode))
+				addWidth(80);
+			// 11ac usually means 80MHz or more
+			else if (/11ac/.test(raw.wmode))
+				addWidth(80);
+			// 11n usually means 40MHz (HT40) or 20MHz (HT20)
+			else if (/11n/.test(raw.wmode))
+				addWidth(40);
+			// 11a/11b/11g without n/ac/ax is 20MHz
+		}
+	}
+
+	if (ap.wmode && /11ax/.test(ap.wmode) && ap.he_cap_width) {
+		addWidth(ap.he_cap_width);
+	}
+
 	if (widths.length)
 		return '%d MHz'.format(Math.max.apply(Math, widths));
 
 	return '20 MHz';
 }
 
-function channelWidthMHz(ap) {
-	var width = channelWidth(ap);
+function channelWidthMHz(ap, raw) {
+	var width = channelWidth(ap, raw);
 	var match = String(width || '').match(/([0-9]+)/);
 	return match ? Number(match[1]) : 20;
 }
@@ -547,7 +576,8 @@ return view.extend({
 					E('span', [ _('Channel'), ': ', String(ap.channel || '-') ]),
 					E('span', [ _('Channel Width'), ': ', '%s MHz'.format(widthMHz) ]),
 					E('span', [ _('Signal'), ': ', ap.signal != null ? '%s dBm'.format(ap.signal) : '-' ]),
-					E('span', [ _('Quality'), ': ', ap.quality != null ? '%s/%s'.format(ap.quality, ap.quality_max || 100) : '-' ])
+					E('span', [ _('Quality'), ': ', ap.quality != null ? '%s/%s'.format(ap.quality, ap.quality_max || 100) : '-' ]),
+					ap._raw ? E('span', [ _('Mode'), ': ', String(ap._raw.wmode || '-') + (ap._raw.extch ? (' / ' + ap._raw.extch) : '') ]) : null
 				];
 			}
 
@@ -558,7 +588,7 @@ return view.extend({
 
 			function apShape(ap, index) {
 				var signal = Number(ap.signal);
-				var widthMHz = channelWidthMHz(ap);
+				var widthMHz = channelWidthMHz(ap, ap._raw);
 				var span = (widthMHz / 20) * 2;
 				var left = Math.max(minCh, Number(ap.channel) - span);
 				var right = Math.min(maxCh, Number(ap.channel) + span);
@@ -801,18 +831,24 @@ return view.extend({
 
 			return L.resolveDefault(callScan(radio.device), []).then(function(results) {
 				return L.resolveDefault(callSiteSurvey(radio.device), {}).then(function(siteSurveyResults) {
-					radio.aps = (results || []).filter(function(ap) {
-						return ap && ap.channel && bandFromChannel(ap.channel) === radio.band;
-					}).map(function(ap) {
-						var bssid = (ap.bssid || '').toUpperCase();
-						if (siteSurveyResults && siteSurveyResults[bssid]) {
-							ap.ssid = siteSurveyResults[bssid];
-						}
-						ap.ssid = cleanText(ap.ssid) || _('hidden');
-						ap.band = ap.band || bandFromChannel(ap.channel);
-						return ap;
+					return L.resolveDefault(callRawSiteSurvey(radio.device), {}).then(function(rawResults) {
+						radio.aps = (results || []).filter(function(ap) {
+							return ap && ap.channel && bandFromChannel(ap.channel) === radio.band;
+						}).map(function(ap) {
+							var bssid = (ap.bssid || '').toUpperCase();
+							if (siteSurveyResults && siteSurveyResults[bssid]) {
+								ap.ssid = siteSurveyResults[bssid];
+							}
+							// Merge raw survey data (wmode, extch) for accurate channel width
+							if (rawResults && rawResults[bssid]) {
+								ap._raw = rawResults[bssid];
+							}
+							ap.ssid = cleanText(ap.ssid) || _('hidden');
+							ap.band = ap.band || bandFromChannel(ap.channel);
+							return ap;
+						});
+						radio.scanned = true;
 					});
-					radio.scanned = true;
 				});
 			}).catch(function(err) {
 				radio.scanError = _('Scan failed: %s').format(err && err.message ? err.message : err);
@@ -1256,8 +1292,10 @@ return view.extend({
 								ev.currentTarget.classList.add('spinning');
 								changes.forEach(function(change) {
 									var cfg = change.config || 'wireless';
-									if (cfg === 'shawnwrt' && !uci.get(cfg, change.section))
-										uci.add(cfg, 'config', change.section);
+									if (cfg === 'shawnwrt' && change.section === 'steer' && !uci.get(cfg, 'steer')) {
+										// Create the named 'steer' section: uci.add(config, type, name)
+										uci.add(cfg, 'steer', 'steer');
+									}
 									uci.set(cfg, change.section, change.option, change.newValue);
 								});
 								return uci.save()

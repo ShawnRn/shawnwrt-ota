@@ -5,7 +5,10 @@ local jsonc = require "luci.jsonc"
 
 local method = arg[1]
 if method == "list" then
-	print('{ "get_site_survey": { "device": "string" } }')
+	print(jsonc.stringify({
+		get_site_survey = { device = "string" },
+		get_raw_survey = { device = "string" }
+	}))
 	os.exit(0)
 end
 
@@ -13,16 +16,51 @@ if method == "call" then
 	local input = io.read("*a")
 	local req = jsonc.parse(input) or {}
 	local device = req.device or "ra0"
-	
+
 	-- Verify device name to prevent command injection
 	if not device:match("^[a-zA-Z0-9_]+$") then
 		print('{ "results": {} }')
 		os.exit(0)
 	end
 
+	if req.action == "raw" or method == "get_raw_survey" then
+		-- Return raw channel width data from iwpriv site survey
+		local results = {}
+		local lines = sys.exec("iwpriv " .. device .. " get_site_survey 2>/dev/null")
+
+		if lines then
+			for line in lines:gmatch("[^\r\n]+") do
+				if #line >= 118 then
+					local ch = line:sub(5, 7):match("(%d+)")
+					local ssid = line:sub(9, 40):match("^(.-)%s*$")
+					local bssid = line:sub(42, 58):upper()
+					local security = line:sub(62, 72):match("^(.-)%s*$")
+					local rssi = tonumber(line:sub(85, 87))
+					local signal_pct = tonumber(line:sub(93, 95))
+					local wmode = line:sub(102, 112):match("^(.-)%s*$")
+					local extch = line:sub(114, 118):match("^(.-)%s*$")
+
+					if bssid and bssid:match("^[0-9A-F]+:[0-9A-F]+:[0-9A-F]+:[0-9A-F]+:[0-9A-F]+:[0-9A-F]+$") then
+						results[bssid] = {
+							channel = ch,
+							ssid = ssid,
+							signal = rssi,
+							wmode = wmode,
+							extch = extch
+						}
+					end
+				end
+			end
+		end
+
+		print(jsonc.stringify({ results = results }))
+		os.exit(0)
+	end
+
+	-- Default: get_site_survey (BSSID to SSID mapping)
 	local bssidToSsid = {}
 	local lines = sys.exec("iwpriv " .. device .. " get_site_survey 2>/dev/null")
-	
+
 	if lines then
 		for line in lines:gmatch("[^\r\n]+") do
 			-- BSSID starts at column 41 (1-indexed: 42) and length is 17
@@ -32,14 +70,14 @@ if method == "call" then
 				local ssid = line:sub(9, 41)
 				-- Trim trailing spaces
 				ssid = ssid:match("^(.-)%s*$")
-				
+
 				if bssid:match("^[0-9A-F]+:[0-9A-F]+:[0-9A-F]+:[0-9A-F]+:[0-9A-F]+:[0-9A-F]+$") then
 					bssidToSsid[bssid] = ssid
 				end
 			end
 		end
 	end
-	
+
 	print(jsonc.stringify({ results = bssidToSsid }))
 	os.exit(0)
 end

@@ -1,6 +1,6 @@
 {
 	"admin/system/shawnwrt-ota": {
-		"title": "ShawnWrt OTA",
+		"title": "ShawnWrt 在线更新",
 		"order": 65,
 		"action": {
 			"type": "view",

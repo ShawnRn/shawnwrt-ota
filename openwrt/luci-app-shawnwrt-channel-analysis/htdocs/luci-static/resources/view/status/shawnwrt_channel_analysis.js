@@ -120,28 +120,46 @@ function channelWidthMHz(ap, raw) {
 
 function scoreChannels(freqs, aps) {
 	var scores = {};
+	var is2g = freqs.length > 0 && Number(freqs[0].channel) <= 14;
 
-	freqs.forEach(function(freq) {
-		scores[freq.channel] = 0;
+	freqs.forEach(function(f) {
+		var ch = Number(f.channel);
+		scores[ch] = 0;
+		// Prefer non-overlapping channels in 2.4GHz
+		if (is2g && ch !== 1 && ch !== 6 && ch !== 11)
+			scores[ch] += 500;
 	});
 
 	aps.forEach(function(ap) {
-		var channel = Number(ap.channel);
+		var ch = Number(ap.channel);
 		var signal = Number(ap.signal || -100);
-		var weight = Math.max(1, 120 + signal);
+		var width = channelWidthMHz(ap, ap._raw);
+		
+		// Exponential weight for signal: -40dBm is much worse than -80dBm
+		var weight = Math.pow(1.3, (signal + 100) / 2); 
+		var range = (width / 5) / 2;
+		var start = ch - range;
+		var end = ch + range;
 
-		Object.keys(scores).forEach(function(ch) {
-			var distance = Math.abs(Number(ch) - channel);
-			if (distance === 0)
-				scores[ch] += weight;
-			else if (distance <= 4)
-				scores[ch] += Math.max(1, weight / (distance + 1));
+		Object.keys(scores).forEach(function(targetCh) {
+			var tch = Number(targetCh);
+			var distance = Math.abs(tch - ch);
+			
+			if (tch >= start && tch <= end) {
+				// Co-channel interference (or within width)
+				scores[tch] += weight * 5;
+			} else if (distance <= 4) {
+				// Adjacent channel interference
+				scores[tch] += weight / (distance + 0.5);
+			}
 		});
 	});
 
-	return Object.keys(scores).sort(function(a, b) {
+	var best = Object.keys(scores).sort(function(a, b) {
 		return scores[a] - scores[b];
-	})[0] || '-';
+	})[0];
+
+	return best || '-';
 }
 
 function channelStats(freqs, aps) {
@@ -251,6 +269,13 @@ function ownAp(radio) {
 	};
 }
 
+function toSignedInt(v) {
+	var n = parseInt(v);
+	if (isNaN(n)) return 0;
+	if (n > 2147483647) return n - 4294967296;
+	return n;
+}
+
 function radioSectionName(section) {
 	return uci.get('wireless', section, 'phy') || section;
 }
@@ -341,14 +366,14 @@ return view.extend({
 	},
 
 	render: function(radios) {
-		var activePage = 'analysis';
-		if (window.location.hash === '#coverage') activePage = 'coverage';
-		if (window.location.hash === '#roaming') activePage = 'roaming';
+		var activePage = window.sessionStorage.getItem('shawnwrt_active_tab') || (window.location.hash.indexOf('#coverage') !== -1 ? 'coverage' : (window.location.hash.indexOf('#roaming') !== -1 ? 'roaming' : 'analysis'));
+		
+		this.radios = radios;
 
 		function renderRoaming() {
 			var enabled = uci.get('shawnwrt', 'steer', 'enabled') === '1';
-			var thres2g = uci.get('shawnwrt', 'steer', 'threshold_2g') || '-80';
-			var thres5g = uci.get('shawnwrt', 'steer', 'threshold_5g') || '-75';
+			var thres2g = toSignedInt(uci.get('shawnwrt', 'steer', 'threshold_2g') || '-80');
+			var thres5g = toSignedInt(uci.get('shawnwrt', 'steer', 'threshold_5g') || '-75');
 			var interval = uci.get('shawnwrt', 'steer', 'interval') || '10';
 
 			return E('div', { 'class': 'shawnwrt-coverage' }, [
@@ -372,47 +397,53 @@ return view.extend({
 					]),
 					E('div', { 'class': 'shawnwrt-control-grid' }, [
 						E('div', { 'class': 'shawnwrt-control-field' }, [
-							E('label', [ _('2.4GHz Threshold (dBm)') ]),
-							E('input', {
-								'type': 'number',
-								'value': thres2g,
-								'min': -100,
-								'max': -30,
-								'input': function(ev) { uci.set('shawnwrt', 'steer', 'threshold_2g', ev.target.value); }
-							})
+							E('label', [ _('2.4GHz Kick Threshold') ]),
+							E('div', { 'style': 'position:relative; display:flex; align-items:center;' }, [
+								E('input', {
+									'class': 'cbi-input-text',
+									'type': 'number',
+									'style': 'width:100%; padding-right:45px;',
+									'value': thres2g,
+									'min': -100,
+									'max': -30,
+									'input': function(ev) { uci.set('shawnwrt', 'steer', 'threshold_2g', ev.target.value); ui.changes.init(); }
+								}),
+								E('span', { 'style': 'position:absolute; right:10px; opacity:0.4; font-size:0.8rem; font-weight:600; pointer-events:none;' }, [ 'dBm' ])
+							]),
+							E('span', { 'class': 'shawnwrt-channel-muted' }, [ _('Kick device if signal lower than this') ])
 						]),
 						E('div', { 'class': 'shawnwrt-control-field' }, [
-							E('label', [ _('5GHz Threshold (dBm)') ]),
-							E('input', {
-								'type': 'number',
-								'value': thres5g,
-								'min': -100,
-								'max': -30,
-								'input': function(ev) { uci.set('shawnwrt', 'steer', 'threshold_5g', ev.target.value); }
-							})
+							E('label', [ _('5GHz Kick Threshold (dBm)') ]),
+							E('div', { 'style': 'position:relative; display:flex; align-items:center;' }, [
+								E('input', {
+									'class': 'cbi-input-text',
+									'type': 'number',
+									'style': 'width:100%; padding-right:45px;',
+									'value': thres5g,
+									'min': -100,
+									'max': -30,
+									'input': function(ev) { uci.set('shawnwrt', 'steer', 'threshold_5g', ev.target.value); ui.changes.init(); }
+								}),
+								E('span', { 'style': 'position:absolute; right:10px; opacity:0.4; font-size:0.8rem; font-weight:600; pointer-events:none;' }, [ 'dBm' ])
+							]),
+							E('span', { 'class': 'shawnwrt-channel-muted' }, [ _('Kick device if signal lower than this') ])
 						]),
 						E('div', { 'class': 'shawnwrt-control-field' }, [
-							E('label', [ _('Check Interval (sec)') ]),
-							E('input', {
-								'type': 'number',
-								'value': interval,
-								'min': 5,
-								'max': 600,
-								'input': function(ev) { uci.set('shawnwrt', 'steer', 'interval', ev.target.value); }
-							})
+							E('label', [ _('Audit Interval (sec)') ]),
+							E('div', { 'style': 'position:relative; display:flex; align-items:center;' }, [
+								E('input', {
+									'class': 'cbi-input-text',
+									'type': 'number',
+									'style': 'width:100%; padding-right:45px;',
+									'value': interval,
+									'min': 5,
+									'max': 600,
+									'input': function(ev) { uci.set('shawnwrt', 'steer', 'interval', ev.target.value); ui.changes.init(); }
+								}),
+								E('span', { 'style': 'position:absolute; right:10px; opacity:0.4; font-size:0.8rem; font-weight:600; pointer-events:none;' }, [ _('sec') ])
+							]),
+							E('span', { 'class': 'shawnwrt-channel-muted' }, [ _('Check signal every few seconds') ])
 						])
-					]),
-					E('div', { 'class': 'right', 'style': 'margin-top:1.25rem' }, [
-						E('button', {
-							'class': 'btn cbi-button-action important',
-							'click': function(ev) {
-								ev.currentTarget.classList.add('spinning');
-								return uci.save()
-									.then(L.bind(ui.changes.init, ui.changes))
-									.then(L.bind(ui.changes.apply, ui.changes))
-									.finally(function() { ev.currentTarget.classList.remove('spinning'); });
-							}
-						}, [ _('Save & Apply') ])
 					])
 				]),
 				E('section', { 'class': 'shawnwrt-coverage-block' }, [
@@ -449,30 +480,8 @@ return view.extend({
 		}
 
 		function applySuggestedChannel(radio, suggested) {
-			return ui.showModal(_('Apply suggested channel'), [
-				E('p', [
-					_('This will set %s to channel %s and apply wireless changes. Wi-Fi clients may briefly disconnect.').format(radio.device, suggested)
-				]),
-				E('div', { 'class': 'right' }, [
-					E('button', {
-						'class': 'btn',
-						'click': ui.hideModal
-					}, [ _('Cancel') ]),
-					' ',
-					E('button', {
-						'class': 'btn cbi-button-action important',
-						'click': function(ev) {
-							ev.currentTarget.disabled = true;
-							ev.currentTarget.classList.add('spinning');
-							uci.set('wireless', radio.sid, 'channel', String(suggested));
-							return uci.save()
-								.then(L.bind(ui.changes.init, ui.changes))
-								.then(L.bind(ui.changes.apply, ui.changes))
-								.finally(ui.hideModal);
-						}
-					}, [ _('Apply suggested channel') ])
-				])
-			]);
+			uci.set('wireless', radio.sid, 'channel', String(suggested));
+			ui.changes.init();
 		}
 
 		function summaryCard(radio) {
@@ -481,7 +490,8 @@ return view.extend({
 			}).length;
 			var suggested = radio.scanned ? scoreChannels(radio.freqs, radio.aps) : '-';
 			var cardBandTitle = radio.band === '2g' ? '2.4 GHz' : radio.band === '5g' ? '5 GHz' : radio.band;
-			var canApply = radio.scanned && suggested && suggested !== '-';
+			var isCurrentBest = (suggested !== '-' && String(suggested) === String(radio.info.channel));
+			var canApply = radio.scanned && suggested && suggested !== '-' && !isCurrentBest;
 
 				var btnAttrs = {
 					'class': 'btn cbi-button cbi-button-action shawnwrt-channel-apply',
@@ -490,8 +500,11 @@ return view.extend({
 					}
 				};
 				
-				if (!canApply)
+				if (!canApply) {
 					btnAttrs.disabled = 'disabled';
+					if (isCurrentBest)
+						btnAttrs.style = 'background: rgba(0,0,0,0.05); color: var(--swrt-muted); border-color: transparent; opacity: 0.6; cursor: default;';
+				}
 
 				return E('div', { 'class': 'shawnwrt-channel-card' }, [
 					E('div', { 'class': 'shawnwrt-channel-card-head' }, [
@@ -504,7 +517,7 @@ return view.extend({
 						E('div', [ E('b', [ radio.scanned ? String(sameChannel) : '-' ]), E('span', [ _('Same-channel APs') ]) ]),
 						E('div', [ E('b', [ suggested ]), E('span', [ _('Suggested channel') ]) ])
 					]),
-					E('button', btnAttrs, [ canApply ? _('Apply suggested channel') : _('No suggested channel') ])
+					E('button', btnAttrs, [ isCurrentBest ? _('Already the best channel') : (canApply ? _('Apply suggested channel') : _('No suggested channel')) ])
 				]);
 			}
 
@@ -1185,8 +1198,8 @@ return view.extend({
 					assocthres: Number(currentIfaceValue(first, 'assocthres', '0')),
 					steeringthresold: Number(currentIfaceValue(first, 'steeringthresold', '0')),
 					steer_enabled: uci.get('shawnwrt', 'steer', 'enabled') === '1',
-					steer_2g: (uci.get('shawnwrt', 'steer', 'enabled') === '1') ? Number(uci.get('shawnwrt', 'steer', 'threshold_2g') || '-85') : 0,
-					steer_5g: (uci.get('shawnwrt', 'steer', 'enabled') === '1') ? Number(uci.get('shawnwrt', 'steer', 'threshold_5g') || '-82') : 0,
+					steer_2g: (uci.get('shawnwrt', 'steer', 'enabled') === '1') ? toSignedInt(uci.get('shawnwrt', 'steer', 'threshold_2g') || '-85') : 0,
+					steer_5g: (uci.get('shawnwrt', 'steer', 'enabled') === '1') ? toSignedInt(uci.get('shawnwrt', 'steer', 'threshold_5g') || '-82') : 0,
 					bandsteering: currentRadioValue(radio2g || radio5g, 'bandsteering', '0'),
 					unify: sameBandCredentials() ? '1' : '0',
 					ieee80211k: currentIfaceValue(first, 'ieee80211k', '0'),
@@ -1229,8 +1242,12 @@ return view.extend({
 
 			function setCoverageState(next) {
 				coverageState = withCredentials(Object.assign({}, coverageState, next));
+				applyCoverageStateToUci();
+				ui.changes.init();
 				refreshCoverage();
 			}
+
+			this.setCoverageState = setCoverageState;
 
 			function addChange(changes, config, section, option, value) {
 				if (!section || value == null)
@@ -1293,62 +1310,67 @@ return view.extend({
 				return changes;
 			}
 
-			function applyCoverageChanges() {
-				var changes = coverageChanges();
+			function applyCoverageStateToUci() {
+				var radio2g = radioByBand('2g');
+				var radio5g = radioByBand('5g');
+				var ifaces = apIfaces();
+				var primaryIfaces = primaryApIfaces();
 
-				if (!changes.length) {
-					ui.addNotification(null, E('p', [ _('No wireless changes to apply.') ]), 'info');
-					return Promise.resolve();
+				if (radio2g) uci.set('wireless', radio2g.sid, 'txpower', coverageState.tx2g);
+				if (radio5g) uci.set('wireless', radio5g.sid, 'txpower', coverageState.tx5g);
+
+				radios.forEach(function(radio) {
+					uci.set('wireless', radio.sid, 'bandsteering', boolValue(coverageState.bandsteering) ? '1' : '0');
+				});
+
+				ifaces.forEach(function(iface) {
+					var sid = iface['.name'];
+					uci.set('wireless', sid, 'ieee80211k', boolValue(coverageState.ieee80211k) ? '1' : '0');
+					uci.set('wireless', sid, 'bss_transition', boolValue(coverageState.ieee80211v) ? '1' : '0');
+					uci.set('wireless', sid, 'ieee80211r', boolValue(coverageState.ieee80211r) ? '1' : '0');
+				});
+
+				var steerEnabled = boolValue(coverageState.steer_enabled);
+				if (!uci.get('shawnwrt', 'steer'))
+					uci.set('shawnwrt', 'steer', 'steer');
+
+				uci.set('shawnwrt', 'steer', 'enabled', steerEnabled ? '1' : '0');
+				if (steerEnabled) {
+					uci.set('shawnwrt', 'steer', 'threshold_2g', coverageState.steer_2g);
+					uci.set('shawnwrt', 'steer', 'threshold_5g', coverageState.steer_5g);
 				}
 
-				return ui.showModal(_('Apply coverage control'), [
-					E('p', [ _('The following wireless options will be changed. Wi-Fi clients may briefly disconnect.') ]),
-					E('div', { 'class': 'shawnwrt-diff-list' }, changes.map(function(change) {
-						return E('div', { 'class': 'shawnwrt-diff-row' }, [
-							E('code', [ '%s.%s.%s'.format(change.config || 'wireless', change.section, change.option) ]),
-							E('span', [ change.oldValue || '-' ]),
-							E('span', [ '\u2192' ]),
-							E('b', [ change.newValue || '-' ])
-						]);
-					})),
-					E('div', { 'class': 'right' }, [
-						E('button', { 'class': 'btn', 'click': ui.hideModal }, [ _('Cancel') ]),
-						' ',
-						E('button', {
-							'class': 'btn cbi-button-action important',
-							'click': function(ev) {
-								ev.currentTarget.disabled = true;
-								ev.currentTarget.classList.add('spinning');
-								changes.forEach(function(change) {
-									var cfg = change.config || 'wireless';
-									if (cfg === 'shawnwrt' && change.section === 'steer' && !uci.get(cfg, 'steer')) {
-										// Create the named 'steer' section: uci.add(config, type, name)
-										uci.add(cfg, 'steer', 'steer');
-									}
-									uci.set(cfg, change.section, change.option, change.newValue);
-								});
-								return uci.save()
-									.then(L.bind(ui.changes.init, ui.changes))
-									.then(L.bind(ui.changes.apply, ui.changes))
-									.then(function() {
-										ui.hideModal();
-									})
-									.catch(function(err) {
-										ui.hideModal();
-										ui.addNotification(null, E('p', [ _('Apply failed: %s').format(err && err.message ? err.message : err) ]), 'error');
-									});
-							}
-						}, [ _('Apply changes') ])
-					])
-				]);
+				if (coverageState.unify === '1') {
+					primaryIfaces.forEach(function(iface) {
+						var sid = iface['.name'];
+						uci.set('wireless', sid, 'ssid', coverageState.ssid);
+						uci.set('wireless', sid, 'encryption', coverageState.encryption);
+						uci.set('wireless', sid, 'key', coverageState.key);
+					});
+				}
 			}
 
+			this.applyCoverageStateToUci = applyCoverageStateToUci;
+
 			function selectControl(label, value, values, onChange) {
+				var found = false;
+				for (var i = 0; i < values.length; i++) {
+					if (String(values[i].value) === String(value)) {
+						found = true;
+						break;
+					}
+				}
+
+				var options = values.slice();
+				if (!found && value != null && value !== '') {
+					options.unshift({ value: value, label: value + '%' });
+				}
+
 				return E('label', { 'class': 'shawnwrt-control-field' }, [
 					E('span', [ label ]),
 					E('select', {
 						'change': function(ev) { onChange(ev.currentTarget.value); }
-					}, values.map(function(item) {
+					}, options.map(function(item) {
 						var attrs = { 'value': String(item.value) };
 
 						if (String(item.value) === String(value))
@@ -1360,21 +1382,32 @@ return view.extend({
 			}
 
 			function numberControl(label, value, onChange) {
+				var cleanLabel = label.replace(/\s*\(dBm\)\s*/, '');
+				var hasDbm = label.indexOf('(dBm)') !== -1;
+
 				return E('label', { 'class': 'shawnwrt-control-field' }, [
-					E('span', [ label ]),
-					E('input', {
-						'type': 'number',
-						'step': '1',
-						'value': String(value),
-						'change': function(ev) { onChange(Number(ev.currentTarget.value || 0)); }
-					})
+					E('span', [ cleanLabel ]),
+					E('div', { 'style': 'position:relative; display:flex; align-items:center;' }, [
+						E('input', {
+							'class': 'cbi-input-text',
+							'type': 'number',
+							'step': '1',
+							'style': 'width:100%; padding-right:45px;',
+							'value': String(value),
+							'change': function(ev) { onChange(Number(ev.currentTarget.value || 0)); }
+						}),
+						hasDbm ? E('span', { 'style': 'position:absolute; right:10px; opacity:0.4; font-size:0.8rem; font-weight:600; pointer-events:none;' }, [ 'dBm' ]) : null
+					])
 				]);
 			}
 
 			function textControl(label, value, type, disabled, onChange) {
+				var isPassword = (type === 'password');
 				var attrs = {
+					'class': 'cbi-input-text',
 					'type': type || 'text',
 					'value': value || '',
+					'style': 'width:100%;' + (isPassword ? 'padding-right:35px;' : ''),
 					'change': function(ev) { onChange(ev.currentTarget.value); }
 				};
 
@@ -1382,16 +1415,15 @@ return view.extend({
 					attrs.disabled = 'disabled';
 
 				var inputEl = E('input', attrs);
-				var children = [ E('span', [ label ]) ];
+				var wrapper = E('div', { 'style': 'position:relative; display:flex; align-items:center;' }, [ inputEl ]);
 
-				if ((type || 'text') === 'password') {
-					var wrapper = E('span', { 'style': 'position:relative;display:inline-flex;align-items:center;' }, [ inputEl ]);
+				if (isPassword) {
 					var eyeSvg = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
 					var toggleBtn = E('button', {
 						'type': 'button',
 						'class': 'shawnwrt-pw-toggle',
 						'title': _('Long press to show password'),
-						'style': 'position:absolute;right:6px;cursor:pointer;background:none;border:none;padding:2px;color:var(--foreground,currentColor);opacity:0.4;display:flex;align-items:center;'
+						'style': 'position:absolute;right:8px;cursor:pointer;background:none;border:none;padding:2px;color:currentColor;opacity:0.4;display:flex;align-items:center;'
 					});
 					toggleBtn.innerHTML = eyeSvg;
 
@@ -1405,12 +1437,12 @@ return view.extend({
 					toggleBtn.addEventListener('touchend', hidePw);
 
 					wrapper.appendChild(toggleBtn);
-					children.push(wrapper);
-				} else {
-					children.push(inputEl);
 				}
 
-				return E('label', { 'class': 'shawnwrt-control-field' }, children);
+				return E('label', { 'class': 'shawnwrt-control-field' }, [
+					E('span', [ label ]),
+					wrapper
+				]);
 			}
 
 			function toggleControl(label, value, onChange) {
@@ -1435,10 +1467,15 @@ return view.extend({
 				var changes = coverageChanges();
 				var disabledReason = null;
 				var txValues = [
+					{ value: 5, label: '5%' },
+					{ value: 10, label: '10%' },
+					{ value: 15, label: '15%' },
 					{ value: 25, label: '25%' },
 					{ value: 35, label: '35%' },
 					{ value: 50, label: '50%' },
+					{ value: 60, label: '60%' },
 					{ value: 75, label: '75%' },
+					{ value: 85, label: '85%' },
 					{ value: 100, label: '100%' }
 				];
 				var encryptionValues = [
@@ -1493,59 +1530,36 @@ return view.extend({
 						E('h3', [ _('Manual tuning') ]),
 						E('div', { 'class': 'shawnwrt-coverage-status' }, radios.map(function(radio) {
 							var iface = primaryIface(radio);
+							var info = radio.info || {};
+							var realTx = (info.txpower != null) ? info.txpower : (info.txpwr != null ? info.txpwr : (info.tx_power != null ? info.tx_power : null));
+							var cfgTx = currentRadioValue(radio, 'txpower', '-');
+							
 							return E('div', [
 								E('b', [ radio.device, ' ', bandTitle(radio.band) ]),
-								E('span', [ _('Tx power'), ': ', currentRadioValue(radio, 'txpower', '-'), '%' ]),
+								E('span', [ _('Tx power'), ': ', E('strong', [ realTx != null ? realTx + ' dBm' : '-' ]), ' (', _('UCI'), ': ', cfgTx, '%)' ]),
 								E('span', [ _('SSID'), ': ', currentIfaceValue(iface, 'ssid', '-') ])
 							]);
 						})),
 						E('div', { 'class': 'shawnwrt-control-grid' }, [
-						selectControl(_('2.4 GHz power'), coverageState.tx2g, txValues, function(v) { coverageState.tx2g = Number(v); refreshCoverage(); }),
-						selectControl(_('5 GHz power'), coverageState.tx5g, txValues, function(v) { coverageState.tx5g = Number(v); refreshCoverage(); }),
-						numberControl(_('2.4GHz Roaming (dBm)'), coverageState.steer_2g, function(v) { coverageState.steer_2g = v; refreshCoverage(); }),
-						numberControl(_('5GHz Roaming (dBm)'), coverageState.steer_5g, function(v) { coverageState.steer_5g = v; refreshCoverage(); })
+						selectControl(_('2.4 GHz power'), coverageState.tx2g, txValues, function(v) { setCoverageState({ tx2g: Number(v), id: 'custom' }); }),
+						selectControl(_('5 GHz power'), coverageState.tx5g, txValues, function(v) { setCoverageState({ tx5g: Number(v), id: 'custom' }); }),
+						numberControl(_('2.4GHz Roaming (dBm)'), coverageState.steer_2g, function(v) { setCoverageState({ steer_2g: v, id: 'custom' }); }),
+						numberControl(_('5GHz Roaming (dBm)'), coverageState.steer_5g, function(v) { setCoverageState({ steer_5g: v, id: 'custom' }); })
 					]),
 					E('div', { 'class': 'shawnwrt-toggle-grid' }, [
-						toggleControl(_('Smart Roaming'), coverageState.steer_enabled, function(v) { coverageState.steer_enabled = v; refreshCoverage(); }),
-						toggleControl(_('Band steering'), coverageState.bandsteering, function(v) { coverageState.bandsteering = v; refreshCoverage(); }),
-						toggleControl(_('Unify SSID'), coverageState.unify, function(v) { coverageState.unify = v; refreshCoverage(); }),
-						toggleControl(_('802.11k neighbor report'), coverageState.ieee80211k, function(v) { coverageState.ieee80211k = v; refreshCoverage(); }),
-						toggleControl(_('802.11v BSS Transition'), coverageState.ieee80211v, function(v) { coverageState.ieee80211v = v; refreshCoverage(); }),
-						toggleControl(_('802.11r fast roaming'), coverageState.ieee80211r, function(v) { coverageState.ieee80211r = v; refreshCoverage(); })
+						toggleControl(_('Smart Roaming'), coverageState.steer_enabled, function(v) { setCoverageState({ steer_enabled: v, id: 'custom' }); }),
+						toggleControl(_('Band steering'), coverageState.bandsteering, function(v) { setCoverageState({ bandsteering: v, id: 'custom' }); }),
+						toggleControl(_('Unify SSID'), coverageState.unify, function(v) { setCoverageState({ unify: v, id: 'custom' }); }),
+						toggleControl(_('802.11k neighbor report'), coverageState.ieee80211k, function(v) { setCoverageState({ ieee80211k: v, id: 'custom' }); }),
+						toggleControl(_('802.11v BSS Transition'), coverageState.ieee80211v, function(v) { setCoverageState({ ieee80211v: v, id: 'custom' }); }),
+						toggleControl(_('802.11r fast roaming'), coverageState.ieee80211r, function(v) { setCoverageState({ ieee80211r: v, id: 'custom' }); })
 					]),
 						E('div', { 'class': 'shawnwrt-control-grid' }, [
 							textControl(_('Unified SSID'), coverageState.ssid, 'text', coverageState.unify !== '1', function(value) { setCoverageState({ ssid: value, id: 'custom' }); }),
 							selectControl(_('Unified encryption'), coverageState.encryption, encryptionValues, function(value) { setCoverageState({ encryption: value, id: 'custom' }); }),
 							textControl(_('Unified password'), coverageState.key, 'password', coverageState.unify !== '1' || coverageState.encryption === 'none', function(value) { setCoverageState({ key: value, id: 'custom' }); })
 						])
-					]),
-					E('section', { 'class': 'shawnwrt-coverage-block' }, compactChildren([
-						E('div', { 'class': 'shawnwrt-coverage-head' }, [
-							E('div', [
-								E('h3', [ _('Change preview') ]),
-								E('p', { 'class': 'shawnwrt-channel-muted' }, [ changes.length ? _('Review these UCI changes before applying.') : _('No wireless changes to apply.') ])
-							]),
-							E('button', (function() {
-								var attrs = {
-									'class': 'btn cbi-button cbi-button-action',
-									'click': applyCoverageChanges
-								};
-
-								if (disabledReason || !changes.length)
-									attrs.disabled = 'disabled';
-
-								return attrs;
-							})(), [ _('Apply changes') ])
-						]),
-						changes.length ? E('div', { 'class': 'shawnwrt-diff-list' }, changes.map(function(change) {
-							return E('div', { 'class': 'shawnwrt-diff-row' }, [
-								E('code', [ 'wireless.%s.%s'.format(change.section, change.option) ]),
-								E('span', [ change.oldValue || '-' ]),
-								E('span', [ '\u2192' ]),
-								E('b', [ change.newValue || '-' ])
-							]);
-						})) : null
-					]))
+					])
 				]));
 			}
 
@@ -1557,16 +1571,21 @@ return view.extend({
 			}
 
 			function switchPage(page) {
-				var panels = document.querySelectorAll('.shawnwrt-page-panel');
-				var tabs = document.querySelectorAll('.shawnwrt-page-tab');
+				var tabs = document.querySelectorAll('.cbi-tab');
+				var views = document.querySelectorAll('.cbi-tabview');
 
-				for (var i = 0; i < panels.length; i++)
-					panels[i].classList.toggle('active', panels[i].getAttribute('data-page') === page);
+				for (var i = 0; i < tabs.length; i++)
+					tabs[i].classList.toggle('active', tabs[i].getAttribute('data-tab') === page);
 
-				for (var j = 0; j < tabs.length; j++)
-					tabs[j].classList.toggle('active', tabs[j].getAttribute('data-page') === page);
+				for (var j = 0; j < views.length; j++) {
+					var isActive = (views[j].getAttribute('data-tab') === page);
+					views[j].classList.toggle('active', isActive);
+					views[j].style.display = isActive ? '' : 'none';
+				}
 
 				activePage = page;
+				window.sessionStorage.setItem('shawnwrt_active_tab', page);
+				
 				if (window.history && window.history.replaceState) {
 					var hash = '#analysis';
 					if (page === 'coverage') hash = '#coverage';
@@ -1600,6 +1619,13 @@ return view.extend({
 				.shawnwrt-page-tab:hover:not(.active) { background: rgba(0,0,0,.04); }
 				.shawnwrt-page-panel { display: none; }
 				.shawnwrt-page-panel.active { display: block; }
+				.shawnwrt-tabs { display: inline-flex; background: rgba(0,0,0,.05); padding: 2px; border-radius: 8px; gap: 2px; }
+				.shawnwrt-tab { border: none !important; background: transparent !important; padding: .35rem .85rem !important; border-radius: 6px !important; font-size: .8rem !important; font-weight: 600 !important; color: var(--swrt-muted) !important; cursor: pointer; transition: all .2s; }
+				.shawnwrt-tab.active { background: #fff !important; color: #000 !important; box-shadow: 0 2px 6px rgba(0,0,0,.1); }
+				@media (prefers-color-scheme: dark) {
+					.shawnwrt-tabs { background: rgba(255,255,255,.1); }
+					.shawnwrt-tab.active { background: rgba(255,255,255,.2) !important; color: #fff !important; }
+				}
 				.shawnwrt-channel-refresh { min-width: 7.5rem; display: inline-flex; align-items: center; justify-content: center; gap: .45rem; }
 				.shawnwrt-channel-refresh.is-scanning { cursor: progress; opacity: .92; }
 				.shawnwrt-scan-inline { display: inline-flex; align-items: center; gap: .45rem; margin: .35rem 0 .55rem; }
@@ -1689,6 +1715,12 @@ return view.extend({
 				.shawnwrt-control-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .7rem; margin-top: .7rem; }
 				.shawnwrt-control-field { display: grid; gap: .3rem; min-width: 0; font-weight: 700; color: var(--swrt-muted); font-size: .8rem; }
 				.shawnwrt-control-field input, .shawnwrt-control-field select { width: 100%; min-height: 2.35rem; box-sizing: border-box; }
+				.shawnwrt-input { background: rgba(0,0,0,.04); border: 1px solid var(--swrt-panel-border); border-radius: 6px; padding: .4rem .6rem; color: inherit; font-family: inherit; font-size: .85rem; transition: border-color .15s, background .15s; }
+				.shawnwrt-input:focus { background: #fff; border-color: rgba(52,152,219,.5); outline: none; }
+				@media (prefers-color-scheme: dark) {
+					.shawnwrt-input { background: rgba(255,255,255,.06); }
+					.shawnwrt-input:focus { background: rgba(255,255,255,.1); }
+				}
 				.shawnwrt-toggle-grid { display: flex; flex-wrap: wrap; gap: .55rem .9rem; margin-top: .8rem; }
 				.shawnwrt-toggle-field { display: inline-flex; align-items: center; gap: .38rem; min-height: 2.2rem; font-weight: 700; }
 				.shawnwrt-diff-list { display: grid; gap: .4rem; max-height: 20rem; overflow-y: auto; }
@@ -1725,15 +1757,17 @@ return view.extend({
 					.shawnwrt-preset-card.active { background: rgba(52,152,219,.18); }
 				}
 			` ]),
-			E('div', { 'class': 'shawnwrt-channel-titlebar' }, [
-				E('h2', [ _('Channel Analysis') ])
-			]),
-			E('div', { 'class': 'shawnwrt-page-tabs' }, [
-				E('button', { 'class': 'shawnwrt-page-tab' + (activePage === 'analysis' ? ' active' : ''), 'data-page': 'analysis', 'click': function() { switchPage('analysis'); } }, [ _('Channel Analysis') ]),
-				E('button', { 'class': 'shawnwrt-page-tab' + (activePage === 'coverage' ? ' active' : ''), 'data-page': 'coverage', 'click': function() { switchPage('coverage'); } }, [ _('Coverage Control') ])
-			]),
-			E('div', { 'class': 'shawnwrt-page-panels' }, [
-				analysisPanel = E('div', { 'class': 'shawnwrt-page-panel' + (activePage === 'analysis' ? ' active' : ''), 'data-page': 'analysis' }, [
+			E('div', { 'class': 'shawnwrt-container' }, [
+				E('div', { 'id': 'shawnwrt-global-tooltip', 'class': 'shawnwrt-spectrum-tooltip is-hidden' }),
+				E('ul', { 'class': 'cbi-tabmenu' }, [
+					E('li', { 'class': 'cbi-tab' + (activePage === 'analysis' ? ' active' : ''), 'data-tab': 'analysis' }, [
+						E('a', { 'href': '#analysis', 'click': function(ev) { switchPage('analysis'); ev.preventDefault(); } }, [ _('Channel Analysis') ])
+					]),
+					E('li', { 'class': 'cbi-tab' + (activePage === 'coverage' ? ' active' : ''), 'data-tab': 'coverage' }, [
+						E('a', { 'href': '#coverage', 'click': function(ev) { switchPage('coverage'); ev.preventDefault(); } }, [ _('Coverage Control') ])
+					])
+				]),
+				analysisPanel = E('div', { 'class': 'cbi-tabview' + (activePage === 'analysis' ? ' active' : ''), 'data-tab': 'analysis', 'style': 'padding-top:1rem' + (activePage !== 'analysis' ? ';display:none' : '') }, [
 					E('div', { 'class': 'shawnwrt-channel-actions' }, [
 						E('span', { 'class': 'shawnwrt-channel-muted' }, [ _('Scans nearby APs and suggests the best channels for your environment.') ]),
 						E('button', {
@@ -1743,7 +1777,9 @@ return view.extend({
 					]),
 					E('div', { 'class': 'shawnwrt-dual-col' }, radios.map(renderRadio))
 				]),
-				coveragePanel = E('div', { 'class': 'shawnwrt-page-panel' + (activePage === 'coverage' ? ' active' : ''), 'data-page': 'coverage' }, [ renderCoverage() ])
+				coveragePanel = E('div', { 'class': 'cbi-tabview' + (activePage === 'coverage' ? ' active' : ''), 'data-tab': 'coverage', 'style': 'padding-top:1rem' + (activePage !== 'coverage' ? ';display:none' : '') }, [
+					renderCoverage()
+				])
 			])
 		]);
 
@@ -1752,7 +1788,19 @@ return view.extend({
 		return root;
 	},
 
-	handleSaveApply: null,
-	handleSave: null,
-	handleReset: null
+	handleSaveApply: function(ev, mode) {
+		this.applyCoverageStateToUci();
+		return uci.save()
+			.then(L.bind(ui.changes.apply, ui.changes));
+	},
+	handleSave: function(ev) {
+		this.applyCoverageStateToUci();
+		return uci.save();
+	},
+	handleReset: function(ev) {
+		return uci.unload('wireless')
+			.then(L.bind(uci.load, uci, 'wireless'))
+			.then(L.bind(uci.load, uci, 'shawnwrt'))
+			.then(L.bind(ui.render, ui));
+	}
 });

@@ -290,3 +290,21 @@ msgstr "5GHz 漫游阈值 (dBm)"
 
 msgid "Long press to show password"
 msgstr "长按显示密码"
+
+msgid "Already the best channel"
+msgstr "已是最佳信道"
+
+msgid "2.4GHz Kick Threshold (dBm)"
+msgstr "2.4GHz 踢除阈值 (dBm)"
+
+msgid "5GHz Kick Threshold (dBm)"
+msgstr "5GHz 踢除阈值 (dBm)"
+
+msgid "Audit Interval (sec)"
+msgstr "检测间隔 (秒)"
+
+msgid "Kick device if signal lower than this"
+msgstr "当信号低于此值时，主动断开设备以引导其漫游"
+
+msgid "Check signal every few seconds"
+msgstr "每隔几秒检测一次设备信号"

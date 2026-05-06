@@ -198,6 +198,7 @@ build_ipk "shawnwrt-ota" "${cli_version}" "${cli_release}" \
 	"ShawnWrt OTA updater" "${cli_data}"
 rm -rf "${cli_data}"
 
+# luci-app-shawnwrt-ota (LuCI 26+: uses root/ menu.d JSON, no luasrc/controller)
 luci_version="$(sed -n 's/^PKG_VERSION:=//p' "${repo_root}/openwrt/luci-app-shawnwrt-ota/Makefile")"
 luci_release="$(sed -n 's/^PKG_RELEASE:=//p' "${repo_root}/openwrt/luci-app-shawnwrt-ota/Makefile")"
 luci_data="$(mktemp -d)"
@@ -206,10 +207,6 @@ mkdir -p "${luci_data}/www/luci-static/resources/view/system"
 install -m 0644 \
 	"${repo_root}/openwrt/luci-app-shawnwrt-ota/htdocs/luci-static/resources/view/system/shawnwrt_ota.js" \
 	"${luci_data}/www/luci-static/resources/view/system/shawnwrt_ota.js"
-mkdir -p "${luci_data}/usr/lib/lua/luci/controller"
-install -m 0644 \
-	"${repo_root}/openwrt/luci-app-shawnwrt-ota/luasrc/controller/shawnwrt_ota.lua" \
-	"${luci_data}/usr/lib/lua/luci/controller/shawnwrt_ota.lua"
 build_ipk "luci-app-shawnwrt-ota" "${luci_version}" "${luci_release}" \
 	"shawnwrt-ota, luci-base" \
 	"LuCI support for ShawnWrt OTA" "${luci_data}"

@@ -40,6 +40,10 @@ if method == "call" then
 					local wmode = line:sub(102, 112):match("^(.-)%s*$")
 					local extch = line:sub(114, 118):match("^(.-)%s*$")
 
+					if rssi and rssi > 100 then
+						rssi = rssi - 256
+					end
+
 					if bssid and bssid:match("^[0-9A-F]+:[0-9A-F]+:[0-9A-F]+:[0-9A-F]+:[0-9A-F]+:[0-9A-F]+$") then
 						results[bssid] = {
 							channel = ch,

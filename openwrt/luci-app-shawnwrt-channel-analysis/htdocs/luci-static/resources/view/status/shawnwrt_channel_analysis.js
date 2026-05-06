@@ -20,9 +20,9 @@ var callSiteSurvey = rpc.declare({
 
 var callRawSiteSurvey = rpc.declare({
 	object: 'shawnwrt_channel',
-	method: 'get_raw_site_survey',
+	method: 'get_raw_survey',
 	params: [ 'device' ],
-	expect: { results: [] }
+	expect: { results: {} }
 });
 
 var callInfo = rpc.declare({
@@ -832,21 +832,50 @@ return view.extend({
 			return L.resolveDefault(callScan(radio.device), []).then(function(results) {
 				return L.resolveDefault(callSiteSurvey(radio.device), {}).then(function(siteSurveyResults) {
 					return L.resolveDefault(callRawSiteSurvey(radio.device), {}).then(function(rawResults) {
-						radio.aps = (results || []).filter(function(ap) {
-							return ap && ap.channel && bandFromChannel(ap.channel) === radio.band;
-						}).map(function(ap) {
+						var apsMap = {};
+						
+						// 1. Process iwinfo results (standard)
+						(results || []).forEach(function(ap) {
+							if (!ap || !ap.channel || bandFromChannel(ap.channel) !== radio.band) return;
 							var bssid = (ap.bssid || '').toUpperCase();
-							if (siteSurveyResults && siteSurveyResults[bssid]) {
+							apsMap[bssid] = ap;
+						});
+
+						// 2. Merge/Add results from raw survey (more reliable on MTK)
+						if (rawResults) {
+							Object.keys(rawResults).forEach(function(bssid) {
+								var raw = rawResults[bssid];
+								if (!raw || !raw.channel || bandFromChannel(raw.channel) !== radio.band) return;
+								
+								if (!apsMap[bssid]) {
+									// Add missing AP from raw survey
+									apsMap[bssid] = {
+										bssid: bssid,
+										channel: raw.channel,
+										ssid: raw.ssid,
+										signal: raw.signal,
+										_raw: raw
+									};
+								} else {
+									// Enrich existing AP with raw info
+									apsMap[bssid]._raw = raw;
+									if (apsMap[bssid].ssid === _('hidden') || !apsMap[bssid].ssid)
+										apsMap[bssid].ssid = raw.ssid;
+								}
+							});
+						}
+
+						// 3. Convert map back to array and clean up
+						radio.aps = Object.keys(apsMap).map(function(bssid) {
+							var ap = apsMap[bssid];
+							if (siteSurveyResults && siteSurveyResults[bssid])
 								ap.ssid = siteSurveyResults[bssid];
-							}
-							// Merge raw survey data (wmode, extch) for accurate channel width
-							if (rawResults && rawResults[bssid]) {
-								ap._raw = rawResults[bssid];
-							}
+							
 							ap.ssid = cleanText(ap.ssid) || _('hidden');
 							ap.band = ap.band || bandFromChannel(ap.channel);
 							return ap;
 						});
+
 						radio.scanned = true;
 					});
 				});

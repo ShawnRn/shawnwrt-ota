@@ -103,9 +103,54 @@ return view.extend({
 									E('button', { 'class': 'btn', 'click': ui.hideModal }, [zh ? '关闭' : 'Close']),
 									' ',
 									E('button', { 'class': 'btn cbi-button-negative', 'click': function() {
-										ui.hideModal();
-										runOta(['start', 'all']);
-									}}, [zh ? '确认' : 'Confirm'])
+						ui.hideModal();
+						var progressModal = ui.showModal(zh ? '正在下载并安装...' : 'Downloading & Installing...', [
+							E('div', { 'style': 'text-align:center;padding:1rem' }, [
+								E('div', { 'style': 'font-size:2rem;margin-bottom:1rem' }, ['⏳']),
+								E('div', { 'id': 'ota-progress-text', 'style': 'font-size:0.9rem;margin-bottom:0.5rem' }, [zh ? '正在启动下载...' : 'Starting download...']),
+								E('div', { 'style': 'width:100%;height:8px;background:rgba(0,0,0,0.1);border-radius:4px;overflow:hidden' }, [
+									E('div', { 'id': 'ota-progress-bar', 'style': 'width:0%;height:100%;background:#007aff;transition:width 0.3s' })
+								])
+							])
+						]);
+						runOta(['start', 'all']).then(function() {
+							var pollProgress = function() {
+								runOta(['job-status']).then(function(res) {
+									var job = parseInfo(res.stdout);
+									var progressBar = document.getElementById('ota-progress-bar');
+									var progressText = document.getElementById('ota-progress-text');
+									if (!progressBar) return;
+									
+									if (job.JOB_RUNNING === '1') {
+										var progress = parseInt(job.PROGRESS || '0');
+										var stage = job.STAGE || '';
+										progressBar.style.width = progress + '%';
+										if (stage === 'download') {
+											progressText.textContent = zh ? ('正在下载: ' + progress + '%') : ('Downloading: ' + progress + '%');
+										} else if (stage === 'install') {
+											progressText.textContent = zh ? '正在安装固件...' : 'Installing firmware...';
+											progressBar.style.width = '100%';
+										} else {
+											progressText.textContent = zh ? '正在处理...' : 'Processing...';
+										}
+										setTimeout(pollProgress, 1000);
+									} else {
+										if (job.LAST_ERROR) {
+											progressText.textContent = zh ? ('错误: ' + job.LAST_ERROR) : ('Error: ' + job.LAST_ERROR);
+											progressBar.style.background = '#ff3b30';
+											setTimeout(function() { ui.hideModal(); location.reload(); }, 3000);
+										} else {
+											progressText.textContent = zh ? '安装完成，正在重启...' : 'Installation complete, rebooting...';
+											progressBar.style.width = '100%';
+											progressBar.style.background = '#34c759';
+											setTimeout(function() { location.reload(); }, 5000);
+										}
+									}
+								});
+							};
+							setTimeout(pollProgress, 1000);
+						});
+					}}, [zh ? '确认' : 'Confirm'])
 								])
 							]);
 						}

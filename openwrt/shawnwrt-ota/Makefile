@@ -1,8 +1,8 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=shawnwrt-ota
-PKG_VERSION:=1.0.10
-PKG_RELEASE:=2
+PKG_VERSION:=1.0.11
+PKG_RELEASE:=1
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -27,6 +27,8 @@ define Package/shawnwrt-ota/install
 	$(INSTALL_BIN) ./files/usr/bin/shawnwrt-ota $(1)/usr/bin/shawnwrt-ota
 	$(INSTALL_BIN) ./files/usr/bin/shawnwrt-steerd $(1)/usr/bin/shawnwrt-steerd
 	$(INSTALL_BIN) ./files/usr/bin/shawnwrt-ota-cron-helper $(1)/usr/bin/shawnwrt-ota-cron-helper
+	$(INSTALL_DIR) $(1)/etc/config
+	$(INSTALL_CONF) ./files/etc/config/shawnwrt_ota $(1)/etc/config/shawnwrt_ota
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/etc/init.d/shawnwrt-steerd $(1)/etc/init.d/shawnwrt-steerd
 	$(INSTALL_BIN) ./files/etc/init.d/shawnwrt-ota-cron $(1)/etc/init.d/shawnwrt-ota-cron

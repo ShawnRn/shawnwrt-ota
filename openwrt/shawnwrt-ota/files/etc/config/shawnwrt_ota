@@ -1,0 +1,7 @@
+
+config config 'config'
+	option repo 'ShawnRn/immortalwrt-mt7981-cudy-tr3000'
+	option api_base 'https://api.github.com'
+	option auto_check '1'
+
+config state 'state'

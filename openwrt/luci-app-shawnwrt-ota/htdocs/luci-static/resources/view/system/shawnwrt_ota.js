@@ -246,6 +246,18 @@ return view.extend({
 			return true;
 		};
 
+		// Advanced Section
+		s = m.section(form.NamedSection, 'config', 'config', (zh ? '高级设置' : 'Advanced Settings'));
+		
+		o = s.option(form.Value, 'repo', (zh ? 'GitHub 仓库' : 'GitHub Repository'));
+		o.placeholder = 'ShawnRn/immortalwrt-mt7981-cudy-tr3000';
+		o.rmempty = false;
+
+		o = s.option(form.Value, 'api_base', (zh ? 'API 基准地址' : 'API Base URL'));
+		o.placeholder = 'https://api.github.com';
+		o.rmempty = false;
+		o.description = zh ? '如果 API 请求超时，可以尝试使用代理地址。' : 'Try a proxy if API requests timeout.';
+
 		return m.render();
 	},
 	

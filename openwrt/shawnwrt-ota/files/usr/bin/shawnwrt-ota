@@ -3,8 +3,11 @@
 
 set -eu
 
-REPO="${SHAWNWRT_OTA_REPO:-ShawnRn/immortalwrt-mt7981-cudy-tr3000}"
-API_BASE="${SHAWNWRT_OTA_API_BASE:-https://api.github.com}"
+REPO="$(uci -q get shawnwrt_ota.config.repo)"
+API_BASE="$(uci -q get shawnwrt_ota.config.api_base)"
+REPO="${REPO:-ShawnRn/immortalwrt-mt7981-cudy-tr3000}"
+API_BASE="${API_BASE:-https://api.github.com}"
+
 DOWNLOAD_DIR="${SHAWNWRT_OTA_DOWNLOAD_DIR:-/tmp/shawnwrt-ota}"
 KEEP_PACKAGES="${SHAWNWRT_OTA_KEEP_PACKAGES:-1}"
 FORCE="${SHAWNWRT_OTA_FORCE:-0}"
@@ -111,7 +114,7 @@ asset_name_for_board() {
 	local json board
 	json="$1"
 	board="$2"
-	printf '%s' "$json" | json_get '@.assets[*].name' | grep -F "$board" | grep -F 'sysupgrade.bin' | head -n 1
+	printf '%s' "$json" | json_get '@.assets[*].name' | tr ' ' '\n' | grep -F "$board" | grep -F 'sysupgrade.bin' | head -n 1
 }
 
 asset_field() {
@@ -143,6 +146,7 @@ CHECKED_AT=$(date '+%Y-%m-%d %H:%M:%S %z')"
 
 	mkdir -p "$DOWNLOAD_DIR"
 	printf '%s\n' "$info" >"$CACHE_FILE"
+	echo "SUCCESS: Latest release info updated" >&2
 	printf '%s\n' "$info"
 }
 

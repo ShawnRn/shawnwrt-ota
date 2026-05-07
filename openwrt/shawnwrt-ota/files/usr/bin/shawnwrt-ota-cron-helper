@@ -12,9 +12,9 @@ log() {
 
 get_config() {
 	config_load "$CONFIG"
-	config_get ENABLED auto enabled 0
-	config_get START_HOUR auto start_hour 1
-	config_get END_HOUR auto end_hour 3
+	config_get ENABLED config enabled 0
+	config_get START_HOUR config start_hour 1
+	config_get END_HOUR config end_hour 3
 }
 
 run_auto_update() {
@@ -29,7 +29,7 @@ run_auto_update() {
 	if [ "$STATE" = "update" ]; then
 		log "New version available, starting download and install..."
 		/usr/bin/shawnwrt-ota all >> "$LOGFILE" 2>&1
-		uci set "$CONFIG.auto.last_run=$(date '+%Y-%m-%d %H:%M:%S')"
+		uci set "$CONFIG.config.last_run=$(date '+%Y-%m-%d %H:%M:%S')"
 		uci commit "$CONFIG"
 	else
 		log "System is up to date."

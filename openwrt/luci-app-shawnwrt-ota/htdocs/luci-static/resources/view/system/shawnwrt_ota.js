@@ -223,19 +223,20 @@ return view.extend({
 			}, this);
 		}
 
-		// Auto Update Section
-		s = m.section(form.NamedSection, 'auto', 'config', (zh ? '自动更新' : 'Auto Update'));
-		s.anonymous = false;
-		s.addremove = false;
+		// Settings Section with Tabs
+		s = m.section(form.NamedSection, 'config', 'config', (zh ? '设置' : 'Settings'));
+		s.tab('auto', zh ? '自动更新' : 'Auto Update');
+		s.tab('advanced', zh ? '高级设置' : 'Advanced Settings');
 
-		o = s.option(form.Flag, 'enabled', (zh ? '启用自动更新' : 'Enable Auto Update'));
+		// Tab: Auto Update
+		o = s.taboption('auto', form.Flag, 'enabled', (zh ? '启用自动更新' : 'Enable Auto Update'));
 		o.rmempty = false;
 
-		o = s.option(form.ListValue, 'start_hour', (zh ? '开始时间' : 'Start Time'));
+		o = s.taboption('auto', form.ListValue, 'start_hour', (zh ? '开始时间' : 'Start Time'));
 		for (var h = 0; h < 24; h++) o.value(h, (h < 10 ? '0' : '') + h + ':00');
 		o.default = '1';
 
-		o = s.option(form.ListValue, 'end_hour', (zh ? '结束时间' : 'End Time'));
+		o = s.taboption('auto', form.ListValue, 'end_hour', (zh ? '结束时间' : 'End Time'));
 		for (var h = 0; h < 24; h++) o.value(h, (h < 10 ? '0' : '') + h + ':00');
 		o.default = '3';
 		o.validate = function(section_id, value) {
@@ -246,14 +247,12 @@ return view.extend({
 			return true;
 		};
 
-		// Advanced Section
-		s = m.section(form.NamedSection, 'config', 'config', (zh ? '高级设置' : 'Advanced Settings'));
-		
-		o = s.option(form.Value, 'repo', (zh ? 'GitHub 仓库' : 'GitHub Repository'));
+		// Tab: Advanced Settings
+		o = s.taboption('advanced', form.Value, 'repo', (zh ? 'GitHub 仓库' : 'GitHub Repository'));
 		o.placeholder = 'ShawnRn/immortalwrt-mt7981-cudy-tr3000';
 		o.rmempty = false;
 
-		o = s.option(form.Value, 'api_base', (zh ? 'API 基准地址' : 'API Base URL'));
+		o = s.taboption('advanced', form.Value, 'api_base', (zh ? 'API 基准地址' : 'API Base URL'));
 		o.placeholder = 'https://api.github.com';
 		o.rmempty = false;
 		o.description = zh ? '如果 API 请求超时，可以尝试使用代理地址。' : 'Try a proxy if API requests timeout.';

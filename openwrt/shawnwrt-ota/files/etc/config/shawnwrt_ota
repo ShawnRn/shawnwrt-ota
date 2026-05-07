@@ -2,6 +2,8 @@
 config config 'config'
 	option repo 'ShawnRn/immortalwrt-mt7981-cudy-tr3000'
 	option api_base 'https://api.github.com'
-	option auto_check '1'
+	option enabled '0'
+	option start_hour '1'
+	option end_hour '3'
 
 config state 'state'
